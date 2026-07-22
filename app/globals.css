@@ -1,0 +1,76 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+
+:root {
+  /* Ledger-at-dusk palette */
+  --ink: #141b2e;
+  --ink-2: #1c2540;
+  --ink-3: #263056;
+  --parchment: #f5f1e8;
+  --parchment-dim: #e7e0d1;
+  --amber: #e8a33d;
+  --amber-soft: #f2c078;
+  --mint: #4fd1a5;
+  --coral: #f06a6a;
+  --text: #f5f1e8;
+  --text-dim: #9aa3b8;
+  --text-faint: #6b7594;
+  --line: rgba(245, 241, 232, 0.09);
+  --line-strong: rgba(245, 241, 232, 0.16);
+
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(232, 163, 61, 0.12), transparent 60%),
+    radial-gradient(900px 500px at -5% 10%, rgba(79, 209, 165, 0.08), transparent 55%),
+    var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.tab-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: var(--font-body);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ink-3);
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
