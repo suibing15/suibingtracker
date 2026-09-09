@@ -346,10 +346,17 @@ grant execute on function tracker.admin_user_overview() to authenticated;
 
 -- Platform-wide spend totals only — a single row, no per-user breakdown.
 -- This is the only way spend numbers reach the admin at all.
+-- Must DROP first: CREATE OR REPLACE can't change a function's return
+-- columns, only its body — see the same lesson from admin_user_overview
+-- above. This adds income_today/income_this_month.
+drop function if exists tracker.admin_spend_totals();
+
 create or replace function tracker.admin_spend_totals()
 returns table (
   spend_today numeric,
   spend_this_month numeric,
+  income_today numeric,
+  income_this_month numeric,
   active_users int,
   total_users int
 )
@@ -357,15 +364,27 @@ language plpgsql
 security definer
 set search_path = tracker
 as $$
+declare
+  days_in_month int;
+  total_monthly_income numeric;
 begin
   if not tracker.is_admin_or_above() then
     raise exception 'Admin access required.';
   end if;
 
+  days_in_month := extract(day from (date_trunc('month', current_date) + interval '1 month - 1 day'))::int;
+  total_monthly_income := coalesce(
+    (select sum(monthly_income) from tracker.profiles where monthly_income is not null), 0
+  );
+
   return query
   select
     coalesce((select sum(amount) from tracker.expenses where spent_on = current_date), 0),
     coalesce((select sum(amount) from tracker.expenses where spent_on >= date_trunc('month', current_date)::date), 0),
+    -- income_today is each user's declared monthly income prorated to a
+    -- daily share, summed — a same-day comparison baseline for spend_today.
+    total_monthly_income / greatest(days_in_month, 1),
+    total_monthly_income,
     (select count(*) from tracker.profiles where is_active)::int,
     (select count(*) from tracker.profiles)::int;
 end;

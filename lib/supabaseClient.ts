@@ -79,10 +79,13 @@ export type AdminOverviewRow = {
 };
 
 // Shape returned by tracker.admin_spend_totals() — one row, platform-wide,
-// no per-user breakdown. This is the only place spend numbers reach admin.
+// no per-user breakdown. This is the only place spend/income numbers reach
+// admin.
 export type AdminSpendTotals = {
   spend_today: number;
   spend_this_month: number;
+  income_today: number;
+  income_this_month: number;
   active_users: number;
   total_users: number;
 };

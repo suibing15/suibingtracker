@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { supabase, Expense, Profile } from "@/lib/supabaseClient";
 import { formatMoney } from "@/lib/config";
+import CollapsibleCard from "./CollapsibleCard";
 
 type Props = { profile: Profile; expenses: Expense[]; onSaved: () => void; bare?: boolean };
 
@@ -46,17 +47,11 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
     else if (ratio >= 0.8) tone = "watch";
   }
 
-  return (
-    <div className={`income-card tone-${tone} ${bare ? "bare" : ""}`}>
-      <div className="head">
-        <div>
-          <span className="eyebrow">Keep it in perspective</span>
-          <h2>Income vs spend</h2>
-        </div>
-        {!editing && income != null && (
-          <button className="edit-link" onClick={() => setEditing(true)}>Edit</button>
-        )}
-      </div>
+  const body = (
+    <div className={`income-body tone-${tone}`}>
+      {!editing && income != null && (
+        <button className="edit-link" onClick={() => setEditing(true)}>Edit your income</button>
+      )}
 
       {editing ? (
         <div className="edit-row">
@@ -92,130 +87,109 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
       )}
       {err && <p className="err">{err}</p>}
 
-      <style jsx>{`
-        .income-card {
-          background: linear-gradient(180deg, var(--ink-2), var(--ink));
-          border: 1px solid var(--line-strong);
-          border-radius: var(--radius);
-          padding: 26px;
-          box-shadow: var(--shadow);
-        }
-        .income-card.bare {
-          background: none;
-          border: none;
-          box-shadow: none;
-          padding: 0;
-        }
-        .head {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-        .eyebrow {
-          font-family: var(--font-display);
-          font-size: 11px;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          color: var(--amber);
-        }
-        h2 {
-          font-family: var(--font-display);
-          font-weight: 600;
-          font-size: 20px;
-          margin-top: 6px;
-        }
-        .edit-link {
-          background: transparent;
-          border: none;
-          color: var(--text-dim);
-          font-size: 13px;
-        }
-        .edit-link:hover {
-          color: var(--amber);
-        }
-        .edit-row {
-          display: flex;
-          gap: 10px;
-          margin-top: 16px;
-        }
-        input {
-          flex: 1;
-          background: var(--ink);
-          border: 1px solid var(--line-strong);
-          border-radius: var(--radius-sm);
-          color: var(--text);
-          padding: 11px 13px;
-          font-size: 14px;
-        }
-        input:focus {
-          outline: none;
-          border-color: var(--amber);
-        }
-        .save-btn {
-          background: var(--amber);
-          color: #201603;
-          border: none;
-          border-radius: var(--radius-sm);
-          padding: 11px 20px;
-          font-weight: 600;
-          font-size: 13px;
-        }
-        .empty {
-          color: var(--text-faint);
-          font-size: 13px;
-          margin-top: 10px;
-          line-height: 1.6;
-        }
-        .line {
-          margin-top: 14px;
-          font-size: 14px;
-          color: var(--text-dim);
-          line-height: 1.6;
-        }
-        .line strong {
-          color: var(--text);
-          font-weight: 600;
-        }
-        .track {
-          margin-top: 12px;
-          height: 8px;
-          background: var(--ink-3);
-          border-radius: 6px;
-          overflow: hidden;
-        }
-        .fill {
-          height: 100%;
-          border-radius: 6px;
-          transition: width 0.4s ease;
-        }
-        .tone-calm .fill {
-          background: var(--mint);
-        }
-        .tone-watch .fill {
-          background: var(--amber);
-        }
-        .tone-over .fill {
-          background: var(--coral);
-        }
-        .tone-line {
-          margin-top: 10px;
-          font-size: 13px;
-        }
-        .tone-calm .tone-line {
-          color: var(--mint);
-        }
-        .tone-watch .tone-line {
-          color: var(--amber-soft);
-        }
-        .tone-over .tone-line {
-          color: var(--coral);
-        }
-        .err {
-          color: var(--coral);
-          font-size: 12px;
-          margin-top: 10px;
-        }
-      `}</style>
+      <style jsx>{incomeStyles}</style>
     </div>
   );
+
+  if (bare) return body;
+
+  return (
+    <CollapsibleCard eyebrow="Keep it in perspective" title="Income vs spend">
+      {body}
+    </CollapsibleCard>
+  );
 }
+
+const incomeStyles = `
+  .edit-link {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 0;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+  .edit-link:hover {
+    color: var(--amber);
+  }
+  .edit-row {
+    display: flex;
+    gap: 10px;
+  }
+  input {
+    flex: 1;
+    background: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 11px 13px;
+    font-size: 14px;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--amber);
+  }
+  .save-btn {
+    background: var(--amber);
+    color: #201603;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 11px 20px;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .empty {
+    color: var(--text-faint);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .line {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .line strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .track {
+    margin-top: 12px;
+    height: 8px;
+    background: var(--ink-3);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease;
+  }
+  .tone-calm .fill {
+    background: var(--mint);
+  }
+  .tone-watch .fill {
+    background: var(--amber);
+  }
+  .tone-over .fill {
+    background: var(--coral);
+  }
+  .tone-line {
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .tone-calm .tone-line {
+    color: var(--mint);
+  }
+  .tone-watch .tone-line {
+    color: var(--amber-soft);
+  }
+  .tone-over .tone-line {
+    color: var(--coral);
+  }
+  .err {
+    color: var(--coral);
+    font-size: 12px;
+    margin-top: 10px;
+  }
+`;

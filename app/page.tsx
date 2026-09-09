@@ -9,6 +9,7 @@ import ExpenseForm from "@/components/ExpenseForm";
 import { Filters } from "@/components/FilterBar";
 import DashboardStats from "@/components/DashboardStats";
 import FinanceCard from "@/components/FinanceCard";
+import IncomeWarning from "@/components/IncomeWarning";
 import ReportsAndEntriesCard from "@/components/ReportsAndEntriesCard";
 import ManageUsersCard from "@/components/ManageUsersCard";
 import RecommendationsCard from "@/components/RecommendationsCard";
@@ -210,29 +211,37 @@ export default function Home() {
           <div className="loading">Loading your dashboard…</div>
         ) : (
           <>
-            {/* 1. Dashboard — filter controls + quick totals + range pulse, one card */}
-            <DashboardStats
-              allExpenses={all}
-              rangeExpenses={filtered}
-              rangeLabel={rangeLabel}
-              filters={filters}
-              onFiltersChange={setFilters}
-              onQuickRange={quickRange}
-            />
+            {/* 1. Dashboard — filter controls + quick totals + range pulse + income parity, one card */}
+            {profile && (
+              <DashboardStats
+                profile={profile}
+                allExpenses={all}
+                rangeExpenses={filtered}
+                rangeLabel={rangeLabel}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onQuickRange={quickRange}
+              />
+            )}
 
-            {/* 2. Log a spend */}
+            {/* 2. Income — its own card, right after the dashboard */}
+            {profile && hasFeature(profile.features, "income_warning") && (
+              <IncomeWarning profile={profile} expenses={all} onSaved={refreshProfile} />
+            )}
+
+            {/* 3. Log a spend */}
             {session && (
               <CollapsibleCard eyebrow="Log a spend" title="What did you spend on?">
                 <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} bare />
               </CollapsibleCard>
             )}
 
-            {/* 3. Budgets, projector & income — one combined card */}
+            {/* 4. Budgets & projections */}
             {profile && (
-              <FinanceCard profile={profile} allExpenses={all} onIncomeSaved={refreshProfile} />
+              <FinanceCard profile={profile} allExpenses={all} onProfileChanged={refreshProfile} />
             )}
 
-            {/* 4. Reports + manage entries — merged */}
+            {/* 5. Reports + manage entries — merged */}
             {profile && (
               <ReportsAndEntriesCard
                 expenses={filtered}
@@ -243,15 +252,15 @@ export default function Home() {
               />
             )}
 
-            {/* 5. Manage users — admin-tier only */}
+            {/* 6. Manage users — admin-tier only */}
             {profile && isAdminRole(profile.role) && session && (
               <ManageUsersCard currentUserId={session.user.id} />
             )}
 
-            {/* 6. Recommendations dashboard — admin-tier only */}
+            {/* 7. Recommendations dashboard — admin-tier only */}
             {profile && isAdminRole(profile.role) && <RecommendationsCard />}
 
-            {/* 7. My account — everyone */}
+            {/* 8. My account — everyone */}
             {profile && <MyAccountCard profile={profile} />}
           </>
         )}

@@ -94,8 +94,16 @@ export default function ManageUsersCard({ currentUserId }: Props) {
           <span className="value tab-nums">{formatMoney(totals?.spend_today ?? 0)}</span>
         </div>
         <div className="summary-tile">
+          <span className="label">Income today (everyone, prorated)</span>
+          <span className="value tab-nums">{formatMoney(totals?.income_today ?? 0)}</span>
+        </div>
+        <div className="summary-tile">
           <span className="label">Spent this month (everyone)</span>
           <span className="value tab-nums">{formatMoney(totals?.spend_this_month ?? 0)}</span>
+        </div>
+        <div className="summary-tile">
+          <span className="label">Income this month (everyone)</span>
+          <span className="value tab-nums">{formatMoney(totals?.income_this_month ?? 0)}</span>
         </div>
       </div>
 
@@ -198,7 +206,7 @@ export default function ManageUsersCard({ currentUserId }: Props) {
       <style jsx>{`
         .summary-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 12px;
           margin-bottom: 20px;
         }

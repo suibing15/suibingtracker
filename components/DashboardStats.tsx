@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { Expense } from "@/lib/supabaseClient";
+import { Expense, Profile } from "@/lib/supabaseClient";
 import { formatMoney } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
 import FilterBar, { Filters } from "./FilterBar";
 
 type Props = {
+  profile: Profile;
   allExpenses: Expense[]; // for fixed quick-range tiles, independent of the active filter
   rangeExpenses: Expense[]; // whatever the filter bar currently selects
   rangeLabel: string;
@@ -22,6 +23,7 @@ function isoDaysAgo(n: number) {
 }
 
 export default function DashboardStats({
+  profile,
   allExpenses,
   rangeExpenses,
   rangeLabel,
@@ -65,6 +67,16 @@ export default function DashboardStats({
     return { total, count, days, maxDay, avgPerDay, topDay };
   }, [rangeExpenses]);
 
+  const parity = useMemo(() => {
+    if (!profile.monthly_income || profile.monthly_income <= 0) return null;
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+    const spentThisMonth = allExpenses
+      .filter((e) => e.spent_on >= monthStart)
+      .reduce((s, e) => s + Number(e.amount), 0);
+    const ratio = spentThisMonth / profile.monthly_income;
+    return { spentThisMonth, income: profile.monthly_income, ratio };
+  }, [allExpenses, profile.monthly_income]);
+
   return (
     <CollapsibleCard eyebrow="Overview" title="Dashboard" subtitle="Filter your range, see quick totals, then the pulse.">
       <div className="filter-slot">
@@ -89,6 +101,23 @@ export default function DashboardStats({
           <span className="value tab-nums">{quick.allTimeCount}</span>
         </div>
       </div>
+
+      {parity && (
+        <div className="parity">
+          <div className="parity-head">
+            <span>Income vs spend this month</span>
+            <span className={`tab-nums ${parity.ratio >= 1 ? "over" : parity.ratio >= 0.8 ? "watch" : ""}`}>
+              {formatMoney(parity.spentThisMonth)} / {formatMoney(parity.income)} ({Math.round(parity.ratio * 100)}%)
+            </span>
+          </div>
+          <div className="parity-track">
+            <div
+              className={`parity-fill ${parity.ratio >= 1 ? "over" : parity.ratio >= 0.8 ? "watch" : "ok"}`}
+              style={{ width: `${Math.min(100, parity.ratio * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="pulse">
         <div className="pulse-top">
@@ -146,6 +175,48 @@ export default function DashboardStats({
           font-weight: 600;
           font-size: 17px;
           color: var(--text);
+        }
+        .parity {
+          margin-bottom: 22px;
+          padding-bottom: 22px;
+          border-bottom: 1px solid var(--line);
+        }
+        .parity-head {
+          display: flex;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          font-size: 13px;
+          color: var(--text-dim);
+          margin-bottom: 8px;
+        }
+        .parity-head .over {
+          color: var(--coral);
+          font-weight: 600;
+        }
+        .parity-head .watch {
+          color: var(--amber);
+          font-weight: 600;
+        }
+        .parity-track {
+          height: 8px;
+          background: var(--ink-3);
+          border-radius: 6px;
+          overflow: hidden;
+        }
+        .parity-fill {
+          height: 100%;
+          border-radius: 6px;
+          transition: width 0.4s ease;
+        }
+        .parity-fill.ok {
+          background: var(--mint);
+        }
+        .parity-fill.watch {
+          background: var(--amber);
+        }
+        .parity-fill.over {
+          background: var(--coral);
         }
         .pulse {
           border-top: 1px solid var(--line);
