@@ -15,6 +15,7 @@ import ManageUsersCard from "@/components/ManageUsersCard";
 import RecommendationsCard from "@/components/RecommendationsCard";
 import MyAccountCard from "@/components/MyAccountCard";
 import GuideCard from "@/components/GuideCard";
+import RecurringBillsManager from "@/components/RecurringBillsManager";
 import CollapsibleCard from "@/components/CollapsibleCard";
 import NoticeBanner from "@/components/NoticeBanner";
 import LockedScreen from "@/components/LockedScreen";
@@ -38,6 +39,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newRecCount, setNewRecCount] = useState(0);
+  const [dueBillsCount, setDueBillsCount] = useState(0);
   // Always lands on Dashboard right after sign-in — never remembers the
   // last section from a previous session.
   const [section, setSection] = useState<SectionId>("dashboard");
@@ -109,6 +111,17 @@ export default function Home() {
     setNewRecCount(0);
   }
 
+  // Due/overdue recurring bills, for the notification bell.
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from("recurring_bills")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .lte("next_due_date", todayIso())
+      .then(({ count }) => setDueBillsCount(count ?? 0));
+  }, [session, all]);
+
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return all.filter((e) => {
@@ -167,11 +180,14 @@ export default function Home() {
     if (profile.admin_notice) {
       list.push("Your admin left you a note at the top of the page.");
     }
+    if (dueBillsCount > 0) {
+      list.push(`${dueBillsCount} recurring bill${dueBillsCount === 1 ? " is" : "s are"} due.`);
+    }
     if (isAdminRole(profile.role) && newRecCount > 0) {
       list.push(`${newRecCount} new recommendation${newRecCount === 1 ? "" : "s"} from users.`);
     }
     return list;
-  }, [profile, all, newRecCount]);
+  }, [profile, all, newRecCount, dueBillsCount]);
 
   if (!authLoading && configured && !session) {
     // Redirect is in flight (see effect above); render nothing to avoid a
@@ -223,6 +239,7 @@ export default function Home() {
               <DashboardStats
                 profile={profile}
                 allExpenses={all}
+                allIncome={allIncome}
                 rangeExpenses={filtered}
                 rangeLabel={rangeLabel}
                 filters={filters}
@@ -245,6 +262,11 @@ export default function Home() {
             {section === "log" && session && (
               <CollapsibleCard eyebrow="Log a spend" title="What did you spend on?">
                 <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} bare />
+                {profile && hasFeature(profile.features, "recurring_bills") && (
+                  <div className="log-section-divider">
+                    <RecurringBillsManager userId={session.user.id} onLogged={load} />
+                  </div>
+                )}
               </CollapsibleCard>
             )}
 
@@ -312,6 +334,11 @@ export default function Home() {
         .section-wrap {
           display: flex;
           flex-direction: column;
+        }
+        .log-section-divider {
+          margin-top: 24px;
+          padding-top: 24px;
+          border-top: 1px solid var(--line);
         }
         .loading {
           color: var(--text-faint);

@@ -50,6 +50,21 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
       return;
     }
     setStatus({ kind: "ok", msg: "Saved." });
+
+    // Best-effort: if a new notice was just set, also push it immediately
+    // to any device the user has notifications enabled on. Never blocks or
+    // fails the save itself if this doesn't go through.
+    if (noticeChanged && notice.trim()) {
+      callAdminApi("/api/push/notify-user", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: profile.id,
+          title: "Note from your admin",
+          body: notice.trim(),
+        }),
+      }).catch(() => {});
+    }
+
     onChanged();
   }
 

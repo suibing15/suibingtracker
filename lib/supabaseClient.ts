@@ -48,6 +48,42 @@ export type IncomeEntry = {
   created_at: string;
 };
 
+export type BillFrequency = "weekly" | "monthly" | "yearly";
+
+export type RecurringBill = {
+  id: string;
+  user_id: string;
+  title: string;
+  amount: number;
+  category: string;
+  payment_method: string;
+  frequency: BillFrequency;
+  next_due_date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavingsGoal = {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth_key: string;
+  created_at: string;
+};
+
 export type Profile = {
   id: string;
   email: string;

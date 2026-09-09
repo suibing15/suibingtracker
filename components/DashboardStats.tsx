@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Expense, Profile } from "@/lib/supabaseClient";
+import { Expense, IncomeEntry, Profile } from "@/lib/supabaseClient";
 import { formatMoney, categoryByKey } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
 import FilterBar, { Filters } from "./FilterBar";
@@ -9,6 +9,7 @@ import FilterBar, { Filters } from "./FilterBar";
 type Props = {
   profile: Profile;
   allExpenses: Expense[]; // for fixed quick-range tiles, independent of the active filter
+  allIncome: IncomeEntry[];
   rangeExpenses: Expense[]; // whatever the filter bar currently selects
   rangeLabel: string;
   filters: Filters;
@@ -25,6 +26,7 @@ function isoDaysAgo(n: number) {
 export default function DashboardStats({
   profile,
   allExpenses,
+  allIncome,
   rangeExpenses,
   rangeLabel,
   filters,
@@ -102,6 +104,28 @@ export default function DashboardStats({
 
     return { thisMonthTotal, lastMonthTotal, momChange, topCategory, biggest };
   }, [allExpenses, rangeExpenses]);
+
+  const trend = useMemo(() => {
+    const months: { key: string; label: string; expense: number; income: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("en-GB", { month: "short" });
+      months.push({ key, label, expense: 0, income: 0 });
+    }
+    const monthKey = (dateStr: string) => dateStr.slice(0, 7);
+    for (const e of allExpenses) {
+      const m = months.find((x) => x.key === monthKey(e.spent_on));
+      if (m) m.expense += Number(e.amount);
+    }
+    for (const inc of allIncome) {
+      const m = months.find((x) => x.key === monthKey(inc.received_on));
+      if (m) m.income += Number(inc.amount);
+    }
+    const max = Math.max(1, ...months.map((m) => Math.max(m.expense, m.income)));
+    return { months, max };
+  }, [allExpenses, allIncome]);
 
   return (
     <CollapsibleCard eyebrow="Overview" title="Dashboard" subtitle="Filter your range, see quick totals, then the pulse.">
@@ -209,6 +233,35 @@ export default function DashboardStats({
           ) : (
             <span className="i-value muted">No spending yet</span>
           )}
+        </div>
+      </div>
+
+      <div className="trend">
+        <div className="trend-head">
+          <span className="i-label">Last 6 months</span>
+          <div className="trend-legend">
+            <span className="legend-item"><span className="dot spend" /> Spend</span>
+            <span className="legend-item"><span className="dot income" /> Income</span>
+          </div>
+        </div>
+        <div className="trend-chart">
+          {trend.months.map((m) => (
+            <div className="trend-col" key={m.key}>
+              <div className="trend-bars">
+                <div
+                  className="trend-bar spend"
+                  style={{ height: `${Math.max(2, (m.expense / trend.max) * 100)}%` }}
+                  title={`Spend: ${formatMoney(m.expense)}`}
+                />
+                <div
+                  className="trend-bar income"
+                  style={{ height: `${Math.max(2, (m.income / trend.max) * 100)}%` }}
+                  title={`Income: ${formatMoney(m.income)}`}
+                />
+              </div>
+              <span className="trend-label">{m.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -401,6 +454,80 @@ export default function DashboardStats({
           height: 8px;
           border-radius: 50%;
           flex-shrink: 0;
+        }
+        .trend {
+          margin-top: 22px;
+          padding-top: 22px;
+          border-top: 1px solid var(--line);
+        }
+        .trend-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 18px;
+        }
+        .trend-legend {
+          display: flex;
+          gap: 14px;
+        }
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-faint);
+        }
+        .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+        .dot.spend {
+          background: var(--amber);
+        }
+        .dot.income {
+          background: var(--mint);
+        }
+        .trend-chart {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 8px;
+          height: 140px;
+        }
+        .trend-col {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          height: 100%;
+        }
+        .trend-bars {
+          flex: 1;
+          display: flex;
+          align-items: flex-end;
+          gap: 3px;
+          width: 100%;
+          justify-content: center;
+        }
+        .trend-bar {
+          width: 30%;
+          max-width: 16px;
+          border-radius: 3px 3px 1px 1px;
+          transition: height 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        .trend-bar.spend {
+          background: linear-gradient(180deg, var(--amber), rgba(232, 163, 61, 0.35));
+        }
+        .trend-bar.income {
+          background: linear-gradient(180deg, var(--mint), rgba(79, 209, 165, 0.35));
+        }
+        .trend-label {
+          margin-top: 8px;
+          font-size: 11px;
+          color: var(--text-faint);
         }
         @media (max-width: 720px) {
           .quick-grid {

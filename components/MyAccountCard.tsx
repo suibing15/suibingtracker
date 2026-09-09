@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase, Profile } from "@/lib/supabaseClient";
 import CollapsibleCard from "./CollapsibleCard";
+import PushOptIn from "./PushOptIn";
 
 type Props = { profile: Profile };
 
@@ -95,6 +96,11 @@ export default function MyAccountCard({ profile }: Props) {
 
   return (
     <CollapsibleCard eyebrow="You" title="My account" subtitle="Change your password, or send feedback to the admin." defaultOpen={false}>
+      <div className="section">
+        <h3>Push notifications</h3>
+        <PushOptIn userId={profile.id} />
+      </div>
+
       <div className="section">
         <h3>Change password</h3>
         <div className="row">

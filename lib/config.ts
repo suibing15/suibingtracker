@@ -87,7 +87,9 @@ export type FeatureKey =
   | "pdf_export"
   | "csv_export"
   | "expense_projector"
-  | "income_warning";
+  | "income_warning"
+  | "recurring_bills"
+  | "savings_goals";
 
 export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string }[] = [
   {
@@ -115,6 +117,16 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
     label: "Income tracking",
     description: "Log income received, plus compare spend against an expected monthly income figure.",
   },
+  {
+    key: "recurring_bills",
+    label: "Recurring bills",
+    description: "Schedule bills (rent, subscriptions) and log them as expenses with one tap when due.",
+  },
+  {
+    key: "savings_goals",
+    label: "Savings goals",
+    description: "Set a savings target and track contributions toward it.",
+  },
 ];
 
 // New accounts get every feature on by default; the admin can turn any off
@@ -125,7 +137,23 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   csv_export: true,
   expense_projector: true,
   income_warning: true,
+  recurring_bills: true,
+  savings_goals: true,
 };
+
+export const BILL_FREQUENCY_LABELS: Record<"weekly" | "monthly" | "yearly", string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
+
+export function nextDueDate(from: string, frequency: "weekly" | "monthly" | "yearly"): string {
+  const d = new Date(from + "T00:00:00");
+  if (frequency === "weekly") d.setDate(d.getDate() + 7);
+  else if (frequency === "monthly") d.setMonth(d.getMonth() + 1);
+  else d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
 
 export function hasFeature(
   features: Record<string, boolean> | null | undefined,

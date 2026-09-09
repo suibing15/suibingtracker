@@ -4,6 +4,7 @@ import { Expense, Profile } from "@/lib/supabaseClient";
 import CollapsibleCard from "./CollapsibleCard";
 import BudgetPanel from "./BudgetPanel";
 import ExpenseProjector from "./ExpenseProjector";
+import SavingsGoalsManager from "./SavingsGoalsManager";
 import { hasFeature } from "@/lib/config";
 
 type Props = {
@@ -15,14 +16,15 @@ type Props = {
 export default function FinanceCard({ profile, allExpenses, onProfileChanged }: Props) {
   const showBudgets = hasFeature(profile.features, "budgets");
   const showProjector = hasFeature(profile.features, "expense_projector");
+  const showGoals = hasFeature(profile.features, "savings_goals");
 
-  if (!showBudgets && !showProjector) return null;
+  if (!showBudgets && !showProjector && !showGoals) return null;
 
   return (
     <CollapsibleCard
       eyebrow="Stay in control"
-      title="Budgets & projections"
-      subtitle="Set your limits and see where this month is headed."
+      title="Budgets, projections & goals"
+      subtitle="Set your limits, see where this month is headed, and save toward what matters."
     >
       <div className="sections">
         {showBudgets && (
@@ -33,6 +35,11 @@ export default function FinanceCard({ profile, allExpenses, onProfileChanged }: 
         {showProjector && (
           <div className="section">
             <ExpenseProjector profile={profile} expenses={allExpenses} bare />
+          </div>
+        )}
+        {showGoals && (
+          <div className="section">
+            <SavingsGoalsManager userId={profile.id} />
           </div>
         )}
       </div>

@@ -465,6 +465,73 @@ create table if not exists tracker.login_attempts (
 alter table tracker.login_attempts enable row level security;
 
 -- ============================================================
+-- 3f. Recurring bills — templates the user schedules and "logs" into a real
+-- expense row when due, advancing next_due_date automatically.
+-- ============================================================
+create table if not exists tracker.recurring_bills (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  amount numeric(12, 2) not null check (amount > 0),
+  category text not null,
+  payment_method text not null,
+  frequency text not null check (frequency in ('weekly', 'monthly', 'yearly')),
+  next_due_date date not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table tracker.recurring_bills enable row level security;
+
+drop policy if exists recurring_bills_owner_all on tracker.recurring_bills;
+create policy recurring_bills_owner_all on tracker.recurring_bills
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists recurring_bills_user_due_idx on tracker.recurring_bills (user_id, next_due_date);
+
+-- ============================================================
+-- 3g. Savings goals — a target, a running current amount the user tops up.
+-- ============================================================
+create table if not exists tracker.savings_goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  target_amount numeric(12, 2) not null check (target_amount > 0),
+  current_amount numeric(12, 2) not null default 0,
+  target_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table tracker.savings_goals enable row level security;
+
+drop policy if exists savings_goals_owner_all on tracker.savings_goals;
+create policy savings_goals_owner_all on tracker.savings_goals
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================
+-- 3h. Push subscriptions — browser push endpoints. RLS lets each user
+-- manage their own directly from the client; the cron/notify routes read
+-- across everyone via the service role (which bypasses RLS), never via a
+-- client-facing policy.
+-- ============================================================
+create table if not exists tracker.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth_key text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table tracker.push_subscriptions enable row level security;
+
+drop policy if exists push_subscriptions_owner_all on tracker.push_subscriptions;
+create policy push_subscriptions_owner_all on tracker.push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================
 -- 4. Grants — a custom schema has NO default privileges, unlike "public"
 -- ============================================================
 grant usage on schema tracker to authenticated, anon, service_role;
