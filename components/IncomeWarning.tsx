@@ -46,9 +46,13 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
     if (ratio >= 1) tone = "over";
     else if (ratio >= 0.8) tone = "watch";
   }
+  // Inline, not class-based: guarantees the right color renders regardless
+  // of any CSS-scoping/cascade edge case with dynamically-built class names.
+  const toneColor = tone === "over" ? "var(--coral)" : tone === "watch" ? "var(--amber)" : "var(--mint)";
+  const toneTextColor = tone === "over" ? "var(--coral)" : tone === "watch" ? "var(--amber-soft)" : "var(--mint)";
 
   const body = (
-    <div className={`income-body tone-${tone}`}>
+    <div className="income-body" style={{ borderColor: income != null ? toneColor : undefined }}>
       {!editing && income != null && (
         <button className="edit-link" onClick={() => setEditing(true)}>Edit your income</button>
       )}
@@ -73,12 +77,15 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
           <p className="line">
             You've spent <strong className="tab-nums">{formatMoney(spendThisMonth)}</strong> of your{" "}
             <strong className="tab-nums">{formatMoney(income)}</strong> monthly income so far —{" "}
-            <strong>{Math.round((ratio ?? 0) * 100)}%</strong>.
+            <strong style={{ color: toneTextColor }}>{Math.round((ratio ?? 0) * 100)}%</strong>.
           </p>
           <div className="track">
-            <div className="fill" style={{ width: `${Math.min(100, (ratio ?? 0) * 100)}%` }} />
+            <div
+              className="fill"
+              style={{ width: `${Math.min(100, (ratio ?? 0) * 100)}%`, backgroundColor: toneColor }}
+            />
           </div>
-          <p className="tone-line">
+          <p className="tone-line" style={{ color: toneTextColor }}>
             {tone === "calm" && "You're comfortably within your income this month."}
             {tone === "watch" && "You're getting close to your income for the month — worth easing off non-essentials."}
             {tone === "over" && "You've spent your whole month's income already. Everything from here is a shortfall — worth a closer look."}
@@ -177,27 +184,9 @@ const incomeStyles = `
     border-radius: 6px;
     transition: width 0.4s ease;
   }
-  .tone-calm .fill {
-    background: var(--mint);
-  }
-  .tone-watch .fill {
-    background: var(--amber);
-  }
-  .tone-over .fill {
-    background: var(--coral);
-  }
   .tone-line {
     margin-top: 10px;
     font-size: 13px;
-  }
-  .tone-calm .tone-line {
-    color: var(--mint);
-  }
-  .tone-watch .tone-line {
-    color: var(--amber-soft);
-  }
-  .tone-over .tone-line {
-    color: var(--coral);
   }
   .err {
     color: var(--coral);

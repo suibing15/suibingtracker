@@ -5,9 +5,10 @@ import { useState } from "react";
 type Props = {
   alerts: string[];
   onOpen?: () => void;
+  direction?: "down" | "up";
 };
 
-export default function NotificationBell({ alerts, onOpen }: Props) {
+export default function NotificationBell({ alerts, onOpen, direction = "down" }: Props) {
   const [open, setOpen] = useState(false);
 
   function toggle() {
@@ -26,7 +27,7 @@ export default function NotificationBell({ alerts, onOpen }: Props) {
       {open && (
         <>
           <div className="backdrop" onClick={() => setOpen(false)} />
-          <div className="dropdown">
+          <div className={`dropdown ${direction === "up" ? "up" : "down"}`}>
             <span className="dd-title">Notifications</span>
             {alerts.length === 0 ? (
               <p className="empty">Nothing needs your attention right now.</p>
@@ -84,7 +85,6 @@ export default function NotificationBell({ alerts, onOpen }: Props) {
         }
         .dropdown {
           position: absolute;
-          top: 46px;
           right: 0;
           width: 280px;
           background: linear-gradient(180deg, var(--ink-2), var(--ink));
@@ -94,6 +94,12 @@ export default function NotificationBell({ alerts, onOpen }: Props) {
           padding: 16px;
           z-index: 41;
         }
+        .dropdown.down {
+          top: 46px;
+        }
+        .dropdown.up {
+          bottom: 46px;
+        }
         @media (max-width: 900px) {
           /* Anchored to the viewport instead of the bell itself — immune to
              any ancestor's positioning/overflow, which is what was causing
@@ -101,6 +107,7 @@ export default function NotificationBell({ alerts, onOpen }: Props) {
           .dropdown {
             position: fixed;
             top: 62px;
+            bottom: auto;
             right: 12px;
             left: 12px;
             width: auto;

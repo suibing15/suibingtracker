@@ -1,24 +1,27 @@
 "use client";
 
-import { Expense, Profile } from "@/lib/supabaseClient";
+import { Expense, IncomeEntry, Profile } from "@/lib/supabaseClient";
 import CollapsibleCard from "./CollapsibleCard";
 import BudgetPanel from "./BudgetPanel";
 import ExpenseProjector from "./ExpenseProjector";
+import IncomeProjector from "./IncomeProjector";
 import SavingsGoalsManager from "./SavingsGoalsManager";
 import { hasFeature } from "@/lib/config";
 
 type Props = {
   profile: Profile;
   allExpenses: Expense[];
+  allIncome: IncomeEntry[];
   onProfileChanged: () => void;
 };
 
-export default function FinanceCard({ profile, allExpenses, onProfileChanged }: Props) {
+export default function FinanceCard({ profile, allExpenses, allIncome, onProfileChanged }: Props) {
   const showBudgets = hasFeature(profile.features, "budgets");
   const showProjector = hasFeature(profile.features, "expense_projector");
+  const showIncomeProjector = hasFeature(profile.features, "income_warning");
   const showGoals = hasFeature(profile.features, "savings_goals");
 
-  if (!showBudgets && !showProjector && !showGoals) return null;
+  if (!showBudgets && !showProjector && !showIncomeProjector && !showGoals) return null;
 
   return (
     <CollapsibleCard
@@ -35,6 +38,11 @@ export default function FinanceCard({ profile, allExpenses, onProfileChanged }: 
         {showProjector && (
           <div className="section">
             <ExpenseProjector profile={profile} expenses={allExpenses} bare />
+          </div>
+        )}
+        {showIncomeProjector && (
+          <div className="section">
+            <IncomeProjector expenses={allExpenses} income={allIncome} bare />
           </div>
         )}
         {showGoals && (

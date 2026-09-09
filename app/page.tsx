@@ -271,7 +271,7 @@ export default function Home() {
             )}
 
             {section === "finance" && profile && (
-              <FinanceCard profile={profile} allExpenses={all} onProfileChanged={refreshProfile} />
+              <FinanceCard profile={profile} allExpenses={all} allIncome={allIncome} onProfileChanged={refreshProfile} />
             )}
 
             {section === "reports" && profile && (

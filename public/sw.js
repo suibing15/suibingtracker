@@ -3,13 +3,15 @@
 // offline; every data request (Supabase, /api/*) always goes to the
 // network — this app is useless without live data, so there's no point
 // (and real risk of showing stale numbers) caching it.
-
-const CACHE_NAME = "suibingtracker-v1";
-const APP_SHELL = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+//
+// Bump CACHE_NAME on any meaningful change to this file — it forces a
+// clean cache cut-over for anyone with an older version installed.
+const CACHE_NAME = "suibingtracker-v2";
+const STATIC_ASSETS = ["/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => {})
   );
   self.skipWaiting();
 });
@@ -34,8 +36,29 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App-shell/static assets: cache-first, falling back to network and
-  // caching the result for next time.
+  // The app shell (HTML navigations, and Next.js's own hashed JS/CSS
+  // bundles) always goes to the network first, so a new deployment is
+  // visible immediately rather than waiting for a cache to expire. Cache
+  // is only the OFFLINE fallback here, not the primary source — this is
+  // what makes the PWA update itself automatically instead of getting
+  // stuck showing an old cached version.
+  if (request.mode === "navigate" || url.pathname.startsWith("/_next/")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Small static assets (icons, manifest): cache-first is fine, they
+  // basically never change without a filename change anyway.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

@@ -99,7 +99,7 @@ export default function Sidebar({ active, onSelect, isAdmin, userEmail, alerts, 
           </div>
           <div className="foot-row">
             <div className="foot-bell-desktop">
-              <NotificationBell alerts={alerts} onOpen={onOpenBell} />
+              <NotificationBell alerts={alerts} onOpen={onOpenBell} direction="up" />
             </div>
             <ThemeToggle />
             <button className="signout" onClick={onSignOut}>Sign out</button>

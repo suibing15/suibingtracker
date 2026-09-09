@@ -34,6 +34,10 @@ const SECTIONS: GuideSection[] = [
         title: "Save it",
         body: "Tap 'Add expense'. If you've set a daily or monthly cap and this pushes you over it, you'll be asked to confirm — it still saves either way, it's just a nudge.",
       },
+      {
+        title: "Recurring bills",
+        body: "In the same section, schedule bills like rent or subscriptions with a frequency and next due date. When one's due, tap 'Log it' — it records the expense and automatically moves the due date forward for you.",
+      },
     ],
   },
   {
@@ -47,22 +51,34 @@ const SECTIONS: GuideSection[] = [
         title: "Set your expected monthly income (optional)",
         body: "A separate figure from what you log — this is what you expect to earn, used only to compare against your spend and show you a percentage used.",
       },
+      {
+        title: "See the trend",
+        body: "The Dashboard shows a 6-month chart comparing your logged income against your spend, month by month, so you can see the pattern over time rather than just one month at a time.",
+      },
     ],
   },
   {
-    title: "Budgets and staying on track",
+    title: "Budgets, projections and goals",
     steps: [
       {
         title: "Set your own cap",
-        body: "In 'Budgets & projections', you can set or lower your own daily/monthly spending cap any time — a commitment device against your own spending.",
+        body: "You can set or lower your own daily/monthly spending cap any time — a commitment device against your own spending.",
       },
       {
         title: "Raising a cap needs approval",
         body: "You can't raise an existing cap yourself — send a request to the admin from the same screen, and they can approve it by editing your account.",
       },
       {
-        title: "Category budgets & the projector",
+        title: "Category budgets & the expense projector",
         body: "Set limits per category too, and check the expense projector for an estimate of where you'll land by month's end based on your current pace.",
+      },
+      {
+        title: "Income projection",
+        body: "If you've been logging income, this section also estimates your projected income and spend for the whole month, and — most usefully — your projected net savings: what you're on track to actually have left over.",
+      },
+      {
+        title: "Savings goals",
+        body: "Set a target (a new laptop, an emergency fund) and top it up with contributions whenever you have spare cash. The progress bar fills as you go, and it tells you when you've reached it.",
       },
     ],
   },
@@ -93,6 +109,32 @@ const SECTIONS: GuideSection[] = [
       {
         title: "Be specific",
         body: "The more detail you give, the easier it is for the admin to act on it — they see everything you send, tagged by type.",
+      },
+    ],
+  },
+  {
+    title: "Notifications",
+    steps: [
+      {
+        title: "The bell icon",
+        body: "Shows a live count of anything worth your attention right now — over-budget warnings, a note from your admin, or bills due. Click it any time to see the full list.",
+      },
+      {
+        title: "Push notifications (optional)",
+        body: "In My account, turn on push notifications to get alerts even when the app isn't open — bills due, over-budget warnings, and admin notices. Your browser will ask for permission once.",
+      },
+      {
+        title: "Install the app",
+        body: "On your phone, use 'Add to Home Screen' from your browser menu to install suibingtracker like a regular app — it works offline for basic viewing and opens without the browser bar.",
+      },
+    ],
+  },
+  {
+    title: "Reading this in another language",
+    steps: [
+      {
+        title: "Use your browser's built-in translator",
+        body: "Chrome, Edge, and Safari can all translate any page automatically — right-click anywhere on the page and choose 'Translate to [your language]', or look for a translate icon in the address bar. This works across the whole app, in any language your browser supports.",
       },
     ],
   },
