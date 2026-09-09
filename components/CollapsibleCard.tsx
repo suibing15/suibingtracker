@@ -8,27 +8,50 @@ type Props = {
   subtitle?: string;
   badge?: string;
   defaultOpen?: boolean;
+  // Every top-level sidebar destination renders as a static, always-open
+  // "page" now — there's nothing else on screen to collapse it in favour
+  // of, so the header is no longer a toggle button. Kept opt-out-able
+  // (asPage=false) in case a genuinely stacked, collapsible use turns up
+  // again later.
+  asPage?: boolean;
   children: React.ReactNode;
 };
 
-export default function CollapsibleCard({ eyebrow, title, subtitle, badge, defaultOpen = true, children }: Props) {
+export default function CollapsibleCard({
+  eyebrow,
+  title,
+  subtitle,
+  badge,
+  defaultOpen = true,
+  asPage = true,
+  children,
+}: Props) {
   const [open, setOpen] = useState(defaultOpen);
+  const isOpen = asPage ? true : open;
+
+  const header = (
+    <div className="text">
+      <span className="eyebrow">{eyebrow}</span>
+      <div className="title-row">
+        <h2>{title}</h2>
+        {badge && <span className="badge">{badge}</span>}
+      </div>
+      {subtitle && <p className="subtitle">{subtitle}</p>}
+    </div>
+  );
 
   return (
     <div className="card">
-      <button className="head" onClick={() => setOpen((v) => !v)}>
-        <div className="text">
-          <span className="eyebrow">{eyebrow}</span>
-          <div className="title-row">
-            <h2>{title}</h2>
-            {badge && <span className="badge">{badge}</span>}
-          </div>
-          {subtitle && <p className="subtitle">{subtitle}</p>}
-        </div>
-        <span className={`chevron ${open ? "open" : ""}`}>›</span>
-      </button>
+      {asPage ? (
+        <div className="head static">{header}</div>
+      ) : (
+        <button className="head" onClick={() => setOpen((v) => !v)}>
+          {header}
+          <span className={`chevron ${isOpen ? "open" : ""}`}>›</span>
+        </button>
+      )}
 
-      {open && <div className="body">{children}</div>}
+      {isOpen && <div className="body">{children}</div>}
 
       <style jsx>{`
         .card {
@@ -49,6 +72,9 @@ export default function CollapsibleCard({ eyebrow, title, subtitle, badge, defau
           justify-content: space-between;
           text-align: left;
           gap: 16px;
+        }
+        .head.static {
+          cursor: default;
         }
         .text {
           display: flex;

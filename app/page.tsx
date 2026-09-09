@@ -16,9 +16,8 @@ import RecommendationsCard from "@/components/RecommendationsCard";
 import MyAccountCard from "@/components/MyAccountCard";
 import CollapsibleCard from "@/components/CollapsibleCard";
 import NoticeBanner from "@/components/NoticeBanner";
-import NotificationBell from "@/components/NotificationBell";
 import LockedScreen from "@/components/LockedScreen";
-import ThemeToggle from "@/components/ThemeToggle";
+import Sidebar, { SectionId } from "@/components/Sidebar";
 
 const isoDaysAgo = (n: number) => {
   const d = new Date();
@@ -38,6 +37,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newRecCount, setNewRecCount] = useState(0);
+  // Always lands on Dashboard right after sign-in — never remembers the
+  // last section from a previous session.
+  const [section, setSection] = useState<SectionId>("dashboard");
   const [filters, setFilters] = useState<Filters>({
     from: isoDaysAgo(30),
     to: todayIso(),
@@ -180,48 +182,43 @@ export default function Home() {
     return <LockedScreen profile={profile} onSignOut={signOut} />;
   }
 
+  const admin = profile ? isAdminRole(profile.role) : false;
+
   return (
-    <main className="wrap">
-      <header className="topbar">
-        <div className="brand">
-          <span className="mark">◈</span>
-          <div>
-            <h1>suibingtracker</h1>
-            <p>Daily expenses, tracked clean.</p>
-          </div>
-        </div>
-        <div className="topbar-right">
-          <ThemeToggle />
-          {profile && <NotificationBell alerts={alerts} onOpen={isAdminRole(profile.role) ? markRecsSeen : undefined} />}
-          <span className="pill">Naira · NGN</span>
-          {session && (
-            <button className="signout" onClick={() => signOut()}>Sign out</button>
-          )}
-        </div>
-      </header>
-
-      {profile && <NoticeBanner profile={profile} />}
-
-      {!configured && (
-        <div className="notice">
-          <strong>Connect Supabase to go live.</strong> Add{" "}
-          <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-          <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in your Vercel project settings
-          (or a local <code>.env.local</code>), then run the SQL in{" "}
-          <code>supabase/schema.sql</code>. The interface below is fully built and
-          will start reading and writing once the keys are in place.
-        </div>
+    <div className="shell">
+      {profile && session && (
+        <Sidebar
+          active={section}
+          onSelect={setSection}
+          isAdmin={admin}
+          userEmail={profile.email}
+          alerts={alerts}
+          onOpenBell={admin ? markRecsSeen : undefined}
+          onSignOut={signOut}
+        />
       )}
 
-      {error && <div className="notice err">Error: {error}</div>}
+      <main className="content">
+        {profile && <NoticeBanner profile={profile} />}
 
-      <section className="stack">
+        {!configured && (
+          <div className="notice">
+            <strong>Connect Supabase to go live.</strong> Add{" "}
+            <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in your Vercel project settings
+            (or a local <code>.env.local</code>), then run the SQL in{" "}
+            <code>supabase/schema.sql</code>. The interface below is fully built and
+            will start reading and writing once the keys are in place.
+          </div>
+        )}
+
+        {error && <div className="notice err">Error: {error}</div>}
+
         {loading ? (
           <div className="loading">Loading your dashboard…</div>
         ) : (
-          <>
-            {/* 1. Dashboard — filter controls + quick totals + range pulse + income parity, one card */}
-            {profile && (
+          <div className="section-wrap">
+            {section === "dashboard" && profile && (
               <DashboardStats
                 profile={profile}
                 allExpenses={all}
@@ -233,8 +230,7 @@ export default function Home() {
               />
             )}
 
-            {/* 2. Income — its own card, right after the dashboard */}
-            {profile && session && hasFeature(profile.features, "income_warning") && (
+            {section === "income" && profile && session && hasFeature(profile.features, "income_warning") && (
               <IncomeCard
                 profile={profile}
                 userId={session.user.id}
@@ -245,20 +241,17 @@ export default function Home() {
               />
             )}
 
-            {/* 3. Log a spend */}
-            {session && (
+            {section === "log" && session && (
               <CollapsibleCard eyebrow="Log a spend" title="What did you spend on?">
                 <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} bare />
               </CollapsibleCard>
             )}
 
-            {/* 4. Budgets & projections */}
-            {profile && (
+            {section === "finance" && profile && (
               <FinanceCard profile={profile} allExpenses={all} onProfileChanged={refreshProfile} />
             )}
 
-            {/* 5. Reports + manage entries — merged */}
-            {profile && (
+            {section === "reports" && profile && (
               <ReportsAndEntriesCard
                 expenses={filtered}
                 rangeLabel={rangeLabel}
@@ -268,80 +261,33 @@ export default function Home() {
               />
             )}
 
-            {/* 6. Manage users — admin-tier only */}
-            {profile && isAdminRole(profile.role) && session && (
+            {section === "manage_users" && admin && session && (
               <ManageUsersCard currentUserId={session.user.id} />
             )}
 
-            {/* 7. Recommendations dashboard — admin-tier only */}
-            {profile && isAdminRole(profile.role) && <RecommendationsCard />}
+            {section === "recommendations" && admin && <RecommendationsCard />}
 
-            {/* 8. My account — everyone */}
-            {profile && <MyAccountCard profile={profile} />}
-          </>
+            {section === "account" && profile && <MyAccountCard profile={profile} />}
+          </div>
         )}
-      </section>
 
-      <footer className="foot">
-        <span>Personal spend, tracked clean · budgets, accounts and features are admin-managed.</span>
-      </footer>
+        <footer className="foot">
+          <span>Personal spend, tracked clean · budgets, accounts and features are admin-managed.</span>
+        </footer>
+      </main>
 
       <style jsx>{`
-        .wrap {
-          max-width: 1080px;
+        .shell {
+          display: flex;
+          align-items: flex-start;
+          min-height: 100vh;
+        }
+        .content {
+          flex: 1;
+          min-width: 0;
+          max-width: 980px;
           margin: 0 auto;
-          padding: 40px 24px 80px;
-        }
-        .topbar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-        }
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-        .mark {
-          font-size: 30px;
-          color: var(--amber);
-          line-height: 1;
-        }
-        .brand h1 {
-          font-family: var(--font-display);
-          font-weight: 700;
-          font-size: 26px;
-          letter-spacing: -0.01em;
-        }
-        .brand p {
-          color: var(--text-dim);
-          font-size: 13px;
-          margin-top: 2px;
-        }
-        .pill {
-          font-family: var(--font-display);
-          font-size: 12px;
-          letter-spacing: 0.08em;
-          color: var(--amber);
-          border: 1px solid var(--line-strong);
-          border-radius: 999px;
-          padding: 8px 16px;
-        }
-        .topbar-right {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .signout {
-          background: transparent;
-          border: none;
-          color: var(--text-faint);
-          font-size: 13px;
-          padding: 8px 4px;
-        }
-        .signout:hover {
-          color: var(--coral);
+          padding: 36px 28px 60px;
         }
         .notice {
           background: rgba(232, 163, 61, 0.1);
@@ -364,14 +310,13 @@ export default function Home() {
           font-size: 12px;
           color: var(--amber-soft);
         }
-        .stack {
+        .section-wrap {
           display: flex;
           flex-direction: column;
-          gap: 18px;
         }
         .loading {
           color: var(--text-faint);
-          padding: 40px;
+          padding: 60px 0;
           text-align: center;
         }
         .foot {
@@ -380,7 +325,15 @@ export default function Home() {
           color: var(--text-faint);
           font-size: 12px;
         }
+        @media (max-width: 900px) {
+          .shell {
+            flex-direction: column;
+          }
+          .content {
+            padding: 24px 16px 48px;
+          }
+        }
       `}</style>
-    </main>
+    </div>
   );
 }
