@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, Expense, isConfigured } from "@/lib/supabaseClient";
+import { supabase, Expense, IncomeEntry, isConfigured } from "@/lib/supabaseClient";
 import { formatDate, isAdminRole, hasFeature } from "@/lib/config";
 import { useAuth } from "@/lib/auth";
 import ExpenseForm from "@/components/ExpenseForm";
 import { Filters } from "@/components/FilterBar";
 import DashboardStats from "@/components/DashboardStats";
 import FinanceCard from "@/components/FinanceCard";
-import IncomeWarning from "@/components/IncomeWarning";
+import IncomeCard from "@/components/IncomeCard";
 import ReportsAndEntriesCard from "@/components/ReportsAndEntriesCard";
 import ManageUsersCard from "@/components/ManageUsersCard";
 import RecommendationsCard from "@/components/RecommendationsCard";
@@ -34,6 +34,7 @@ export default function Home() {
   const router = useRouter();
   const { loading: authLoading, session, profile, superAdminExists, signOut, refreshProfile } = useAuth();
   const [all, setAll] = useState<Expense[]>([]);
+  const [allIncome, setAllIncome] = useState<IncomeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newRecCount, setNewRecCount] = useState(0);
@@ -50,13 +51,21 @@ export default function Home() {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase
-      .from("expenses")
-      .select("*")
-      .order("spent_on", { ascending: false })
-      .order("created_at", { ascending: false });
-    if (error) setError(error.message);
-    else setAll((data as Expense[]) ?? []);
+    const [expensesRes, incomeRes] = await Promise.all([
+      supabase
+        .from("expenses")
+        .select("*")
+        .order("spent_on", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("income_entries")
+        .select("*")
+        .order("received_on", { ascending: false })
+        .order("created_at", { ascending: false }),
+    ]);
+    if (expensesRes.error) setError(expensesRes.error.message);
+    else setAll((expensesRes.data as Expense[]) ?? []);
+    if (!incomeRes.error) setAllIncome((incomeRes.data as IncomeEntry[]) ?? []);
     setLoading(false);
   }, [session]);
 
@@ -225,8 +234,15 @@ export default function Home() {
             )}
 
             {/* 2. Income — its own card, right after the dashboard */}
-            {profile && hasFeature(profile.features, "income_warning") && (
-              <IncomeWarning profile={profile} expenses={all} onSaved={refreshProfile} />
+            {profile && session && hasFeature(profile.features, "income_warning") && (
+              <IncomeCard
+                profile={profile}
+                userId={session.user.id}
+                allIncome={allIncome}
+                allExpenses={all}
+                onIncomeLogged={load}
+                onExpectedIncomeSaved={refreshProfile}
+              />
             )}
 
             {/* 3. Log a spend */}

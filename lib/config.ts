@@ -112,8 +112,8 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
   },
   {
     key: "income_warning",
-    label: "Income warning",
-    description: "Lets the user set their own monthly income and warns them as spend approaches it.",
+    label: "Income tracking",
+    description: "Log income received, plus compare spend against an expected monthly income figure.",
   },
 ];
 

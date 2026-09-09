@@ -347,8 +347,7 @@ grant execute on function tracker.admin_user_overview() to authenticated;
 -- Platform-wide spend totals only — a single row, no per-user breakdown.
 -- This is the only way spend numbers reach the admin at all.
 -- Must DROP first: CREATE OR REPLACE can't change a function's return
--- columns, only its body — see the same lesson from admin_user_overview
--- above. This adds income_today/income_this_month.
+-- columns, only its body.
 drop function if exists tracker.admin_spend_totals();
 
 create or replace function tracker.admin_spend_totals()
@@ -364,27 +363,17 @@ language plpgsql
 security definer
 set search_path = tracker
 as $$
-declare
-  days_in_month int;
-  total_monthly_income numeric;
 begin
   if not tracker.is_admin_or_above() then
     raise exception 'Admin access required.';
   end if;
 
-  days_in_month := extract(day from (date_trunc('month', current_date) + interval '1 month - 1 day'))::int;
-  total_monthly_income := coalesce(
-    (select sum(monthly_income) from tracker.profiles where monthly_income is not null), 0
-  );
-
   return query
   select
     coalesce((select sum(amount) from tracker.expenses where spent_on = current_date), 0),
     coalesce((select sum(amount) from tracker.expenses where spent_on >= date_trunc('month', current_date)::date), 0),
-    -- income_today is each user's declared monthly income prorated to a
-    -- daily share, summed — a same-day comparison baseline for spend_today.
-    total_monthly_income / greatest(days_in_month, 1),
-    total_monthly_income,
+    coalesce((select sum(amount) from tracker.income_entries where received_on = current_date), 0),
+    coalesce((select sum(amount) from tracker.income_entries where received_on >= date_trunc('month', current_date)::date), 0),
     (select count(*) from tracker.profiles where is_active)::int,
     (select count(*) from tracker.profiles)::int;
 end;
@@ -425,7 +414,32 @@ create policy recommendations_admin_delete on tracker.recommendations
 create index if not exists recommendations_user_idx on tracker.recommendations (user_id, created_at desc);
 
 -- ============================================================
--- 3d. Login security — event log (for the admin's login-count columns,
+-- 3d. Income entries — a real, dated log of income received, exactly
+-- parallel to expenses. Same privacy principle: nobody but the owner can
+-- read raw entries, including admin — only the aggregate totals in
+-- admin_spend_totals() below reach admin, computed from a real SUM of
+-- these rows (not an estimate).
+-- ============================================================
+create table if not exists tracker.income_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  received_on date not null,
+  source text not null,
+  amount numeric(12, 2) not null check (amount > 0),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+alter table tracker.income_entries enable row level security;
+
+drop policy if exists income_entries_owner_all on tracker.income_entries;
+create policy income_entries_owner_all on tracker.income_entries
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists income_entries_user_received_idx on tracker.income_entries (user_id, received_on desc);
+
+-- ============================================================
+-- 3e. Login security — event log (for the admin's login-count columns,
 -- privacy-safe replacement for showing spend) and failed-attempt lockout.
 -- Neither table has ANY client-facing RLS policy: they're written and read
 -- exclusively by the service-role-backed /api/login route. RLS is enabled

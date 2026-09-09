@@ -38,6 +38,16 @@ export type Expense = {
   created_at: string;
 };
 
+export type IncomeEntry = {
+  id: string;
+  user_id: string;
+  received_on: string; // date (YYYY-MM-DD)
+  source: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+};
+
 export type Profile = {
   id: string;
   email: string;
