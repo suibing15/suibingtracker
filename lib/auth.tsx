@@ -76,7 +76,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [loadProfile, checkSuperAdminExists]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    // Routed through /api/login (not supabase.auth.signInWithPassword
+    // directly) so failed attempts are rate-limited server-side and
+    // successful ones are logged for the admin's login-count view.
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: body.error ?? "Could not sign in." };
+    }
+    const { error } = await supabase.auth.setSession({
+      access_token: body.access_token,
+      refresh_token: body.refresh_token,
+    });
     return { error: error?.message ?? null };
   }, []);
 

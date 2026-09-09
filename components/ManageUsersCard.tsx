@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase, AdminOverviewRow, Profile } from "@/lib/supabaseClient";
+import { supabase, AdminOverviewRow, AdminSpendTotals, Profile } from "@/lib/supabaseClient";
 import { callAdminApi } from "@/lib/auth";
 import { ROLE_LABELS, ASSIGNABLE_ROLES, UserRole, formatMoney } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
@@ -11,6 +11,7 @@ type Props = { currentUserId: string };
 
 export default function ManageUsersCard({ currentUserId }: Props) {
   const [rows, setRows] = useState<AdminOverviewRow[]>([]);
+  const [totals, setTotals] = useState<AdminSpendTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<Profile | null>(null);
@@ -26,9 +27,16 @@ export default function ManageUsersCard({ currentUserId }: Props) {
 
   const loadRows = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc("admin_user_overview");
-    if (error) setErr(error.message);
-    else setRows((data as AdminOverviewRow[]) ?? []);
+    const [rowsRes, totalsRes] = await Promise.all([
+      supabase.rpc("admin_user_overview"),
+      supabase.rpc("admin_spend_totals"),
+    ]);
+    if (rowsRes.error) setErr(rowsRes.error.message);
+    else setRows((rowsRes.data as AdminOverviewRow[]) ?? []);
+
+    if (totalsRes.data && totalsRes.data.length > 0) {
+      setTotals(totalsRes.data[0] as AdminSpendTotals);
+    }
     setLoading(false);
   }, []);
 
@@ -68,37 +76,26 @@ export default function ManageUsersCard({ currentUserId }: Props) {
     loadRows();
   }
 
-  const totals = rows.reduce(
-    (acc, r) => {
-      acc.users += 1;
-      if (r.is_active) acc.active += 1;
-      acc.spendToday += Number(r.spend_today);
-      acc.spendMonth += Number(r.spend_this_month);
-      return acc;
-    },
-    { users: 0, active: 0, spendToday: 0, spendMonth: 0 }
-  );
-
   return (
     <CollapsibleCard
       eyebrow="Admin"
       title="Manage users"
-      subtitle="Aggregate spend totals only — never anyone's individual entries. Block accounts, grant features, or remove them below."
-      badge={`${totals.users} ${totals.users === 1 ? "user" : "users"}`}
+      subtitle="Individual spend is never shown here — only login activity. Block accounts, grant features, or remove them below."
+      badge={`${totals?.total_users ?? rows.length} ${(totals?.total_users ?? rows.length) === 1 ? "user" : "users"}`}
       defaultOpen={false}
     >
       <div className="summary-grid">
         <div className="summary-tile">
           <span className="label">Active</span>
-          <span className="value tab-nums">{totals.active} / {totals.users}</span>
+          <span className="value tab-nums">{totals?.active_users ?? 0} / {totals?.total_users ?? 0}</span>
         </div>
         <div className="summary-tile">
           <span className="label">Spent today (everyone)</span>
-          <span className="value tab-nums">{formatMoney(totals.spendToday)}</span>
+          <span className="value tab-nums">{formatMoney(totals?.spend_today ?? 0)}</span>
         </div>
         <div className="summary-tile">
           <span className="label">Spent this month (everyone)</span>
-          <span className="value tab-nums">{formatMoney(totals.spendMonth)}</span>
+          <span className="value tab-nums">{formatMoney(totals?.spend_this_month ?? 0)}</span>
         </div>
       </div>
 
@@ -160,8 +157,8 @@ export default function ManageUsersCard({ currentUserId }: Props) {
                 <th>Name</th>
                 <th>Role</th>
                 <th>Status</th>
-                <th className="right">Today</th>
-                <th className="right">This month</th>
+                <th className="right">Logins today</th>
+                <th className="right">Logins this month</th>
                 <th></th>
               </tr>
             </thead>
@@ -177,8 +174,8 @@ export default function ManageUsersCard({ currentUserId }: Props) {
                     <span className={`status-dot ${r.is_active ? "on" : "off"}`} />
                     {r.is_active ? "Active" : "Blocked"}
                   </td>
-                  <td className="right tab-nums">{formatMoney(r.spend_today)}</td>
-                  <td className="right tab-nums">{formatMoney(r.spend_this_month)}</td>
+                  <td className="right tab-nums">{r.logins_today}</td>
+                  <td className="right tab-nums">{r.logins_this_month}</td>
                   <td className="right">
                     <button className="edit-btn" onClick={() => openEditor(r.id)}>Manage</button>
                   </td>

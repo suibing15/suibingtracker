@@ -19,6 +19,12 @@ export default function MyAccountCard({ profile }: Props) {
     kind: "idle",
   });
 
+  const [requestType, setRequestType] = useState<"feature_request" | "complaint">("feature_request");
+  const [requestMessage, setRequestMessage] = useState("");
+  const [requestStatus, setRequestStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({
+    kind: "idle",
+  });
+
   async function changePassword() {
     if (!currentPw || newPw.length < 8) {
       setPwStatus({ kind: "error", msg: "Enter your current password and a new one of at least 8 characters." });
@@ -56,6 +62,7 @@ export default function MyAccountCard({ profile }: Props) {
       user_id: profile.id,
       message: message.trim(),
       rating,
+      type: "recommendation",
     });
     if (error) {
       setRecStatus({ kind: "error", msg: error.message });
@@ -66,8 +73,28 @@ export default function MyAccountCard({ profile }: Props) {
     setRecStatus({ kind: "ok", msg: "Thanks — sent to the admin." });
   }
 
+  async function submitRequest() {
+    if (!requestMessage.trim()) {
+      setRequestStatus({ kind: "error", msg: "Write a message before sending." });
+      return;
+    }
+    setRequestStatus({ kind: "busy" });
+    const { error } = await supabase.from("recommendations").insert({
+      user_id: profile.id,
+      message: requestMessage.trim(),
+      rating: null,
+      type: requestType,
+    });
+    if (error) {
+      setRequestStatus({ kind: "error", msg: error.message });
+      return;
+    }
+    setRequestMessage("");
+    setRequestStatus({ kind: "ok", msg: "Sent to the admin." });
+  }
+
   return (
-    <CollapsibleCard eyebrow="You" title="My account" subtitle="Change your password, or send a suggestion to the admin." defaultOpen={false}>
+    <CollapsibleCard eyebrow="You" title="My account" subtitle="Change your password, or send feedback to the admin." defaultOpen={false}>
       <div className="section">
         <h3>Change password</h3>
         <div className="row">
@@ -120,6 +147,41 @@ export default function MyAccountCard({ profile }: Props) {
           {recStatus.kind === "busy" ? "Sending…" : "Send to admin"}
         </button>
         {recStatus.msg && <p className={`msg ${recStatus.kind}`}>{recStatus.msg}</p>}
+      </div>
+
+      <div className="section">
+        <h3>Request a feature or report an issue</h3>
+        <p className="hint">Something missing, broken, or getting in your way? Let the admin know directly.</p>
+        <div className="type-row">
+          <button
+            className={`type-btn ${requestType === "feature_request" ? "on" : ""}`}
+            onClick={() => setRequestType("feature_request")}
+            type="button"
+          >
+            Feature request
+          </button>
+          <button
+            className={`type-btn ${requestType === "complaint" ? "on" : ""}`}
+            onClick={() => setRequestType("complaint")}
+            type="button"
+          >
+            Complaint
+          </button>
+        </div>
+        <textarea
+          value={requestMessage}
+          onChange={(e) => setRequestMessage(e.target.value)}
+          placeholder={
+            requestType === "feature_request"
+              ? "What would you like this app to do?"
+              : "What went wrong, and when?"
+          }
+          rows={3}
+        />
+        <button className="primary-btn" onClick={submitRequest} disabled={requestStatus.kind === "busy"}>
+          {requestStatus.kind === "busy" ? "Sending…" : "Send to admin"}
+        </button>
+        {requestStatus.msg && <p className={`msg ${requestStatus.kind}`}>{requestStatus.msg}</p>}
       </div>
 
       <style jsx>{`
@@ -177,6 +239,25 @@ export default function MyAccountCard({ profile }: Props) {
         textarea:focus {
           outline: none;
           border-color: var(--amber);
+        }
+        .type-row {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .type-btn {
+          background: var(--ink);
+          border: 1px solid var(--line-strong);
+          color: var(--text-dim);
+          border-radius: var(--radius-sm);
+          padding: 8px 14px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .type-btn.on {
+          background: var(--amber);
+          border-color: var(--amber);
+          color: #201603;
         }
         .rating-row {
           display: flex;

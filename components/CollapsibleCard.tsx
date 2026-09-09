@@ -54,6 +54,7 @@ export default function CollapsibleCard({ eyebrow, title, subtitle, badge, defau
           display: flex;
           flex-direction: column;
           gap: 4px;
+          min-width: 0;
         }
         .eyebrow {
           font-family: var(--font-display);
@@ -65,12 +66,14 @@ export default function CollapsibleCard({ eyebrow, title, subtitle, badge, defau
         .title-row {
           display: flex;
           align-items: center;
-          gap: 10px;
+          flex-wrap: wrap;
+          gap: 8px 10px;
         }
         h2 {
           font-family: var(--font-display);
           font-weight: 600;
           font-size: 19px;
+          overflow-wrap: break-word;
         }
         .badge {
           font-size: 11px;
@@ -78,12 +81,15 @@ export default function CollapsibleCard({ eyebrow, title, subtitle, badge, defau
           border: 1px solid var(--line-strong);
           border-radius: 999px;
           padding: 3px 10px;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .subtitle {
           color: var(--text-dim);
           font-size: 13px;
           line-height: 1.5;
           max-width: 520px;
+          overflow-wrap: break-word;
         }
         .chevron {
           flex-shrink: 0;
@@ -97,6 +103,17 @@ export default function CollapsibleCard({ eyebrow, title, subtitle, badge, defau
         }
         .body {
           padding: 0 26px 26px;
+        }
+        @media (max-width: 480px) {
+          .head {
+            padding: 18px 18px;
+          }
+          .body {
+            padding: 0 18px 22px;
+          }
+          h2 {
+            font-size: 17px;
+          }
         }
       `}</style>
     </div>

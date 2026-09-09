@@ -54,26 +54,37 @@ export type Profile = {
   updated_at: string;
 };
 
+export type RecommendationType = "recommendation" | "feature_request" | "complaint" | "cap_increase_request";
+
 export type Recommendation = {
   id: string;
   user_id: string;
   message: string;
   rating: number | null;
+  type: RecommendationType;
   created_at: string;
 };
 
-// Shape returned by tracker.admin_user_overview() — aggregate numbers only,
-// never a raw expense row. See supabase/schema.sql.
+// Shape returned by tracker.admin_user_overview() — login activity only,
+// never spend. See supabase/schema.sql.
 export type AdminOverviewRow = {
   id: string;
   email: string;
   full_name: string | null;
   role: UserRole;
   is_active: boolean;
+  logins_today: number;
+  logins_this_month: number;
+  last_login_at: string | null;
+};
+
+// Shape returned by tracker.admin_spend_totals() — one row, platform-wide,
+// no per-user breakdown. This is the only place spend numbers reach admin.
+export type AdminSpendTotals = {
   spend_today: number;
   spend_this_month: number;
-  entries_this_month: number;
-  last_entry_at: string | null;
+  active_users: number;
+  total_users: number;
 };
 
 export type Budget = {

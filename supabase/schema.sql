@@ -188,11 +188,23 @@ begin
   then
     return new;
   end if;
+
+  -- Regular users may set their own daily/monthly cap from scratch, or
+  -- lower an existing one — a self-imposed discipline device — but not
+  -- raise one that's already set. Raising a cap requires a
+  -- cap_increase_request recommendation the admin approves manually.
+  if old.daily_budget is not null and new.daily_budget is not null
+     and new.daily_budget > old.daily_budget then
+    new.daily_budget := old.daily_budget;
+  end if;
+  if old.monthly_budget is not null and new.monthly_budget is not null
+     and new.monthly_budget > old.monthly_budget then
+    new.monthly_budget := old.monthly_budget;
+  end if;
+
   new.role := old.role;
   new.is_active := old.is_active;
   new.features := old.features;
-  new.daily_budget := old.daily_budget;
-  new.monthly_budget := old.monthly_budget;
   new.email := old.email;
   new.admin_notice := old.admin_notice;
   new.admin_notice_set_at := old.admin_notice_set_at;
@@ -274,9 +286,11 @@ create policy budgets_owner_all on tracker.budgets
 
 -- ============================================================
 -- 3b. Aggregate-only admin oversight — no raw expense/budget access, ever.
--- Returns per-user summary numbers computed server-side; the admin panel
--- never sees a title, category, note, or individual amount belonging to
--- someone else.
+-- Per-user rows carry LOGIN activity only, never spend — individual spend
+-- never leaves the database in per-user form, not even in aggregate. The
+-- platform-wide totals (spend today/this month across everyone) are a
+-- separate function below that returns a single row with no per-user
+-- breakdown at all.
 -- ============================================================
 create or replace function tracker.admin_user_overview()
 returns table (
@@ -285,10 +299,9 @@ returns table (
   full_name text,
   role tracker.user_role,
   is_active boolean,
-  spend_today numeric,
-  spend_this_month numeric,
-  entries_this_month int,
-  last_entry_at timestamptz
+  logins_today int,
+  logins_this_month int,
+  last_login_at timestamptz
 )
 language plpgsql
 security definer
@@ -306,31 +319,59 @@ begin
     p.full_name,
     p.role,
     p.is_active,
-    coalesce(t.spend_today, 0),
-    coalesce(m.spend_this_month, 0),
-    coalesce(m.entries_this_month, 0)::int,
-    l.last_entry_at
+    coalesce(t.logins_today, 0)::int,
+    coalesce(m.logins_this_month, 0)::int,
+    l.last_login_at
   from tracker.profiles p
   left join lateral (
-    select sum(e.amount) as spend_today
-    from tracker.expenses e
-    where e.user_id = p.id and e.spent_on = current_date
+    select count(*) as logins_today
+    from tracker.login_events le
+    where le.user_id = p.id and le.created_at >= date_trunc('day', now())
   ) t on true
   left join lateral (
-    select sum(e.amount) as spend_this_month, count(*) as entries_this_month
-    from tracker.expenses e
-    where e.user_id = p.id and e.spent_on >= date_trunc('month', current_date)::date
+    select count(*) as logins_this_month
+    from tracker.login_events le
+    where le.user_id = p.id and le.created_at >= date_trunc('month', now())
   ) m on true
   left join lateral (
-    select max(e.created_at) as last_entry_at
-    from tracker.expenses e
-    where e.user_id = p.id
+    select max(le.created_at) as last_login_at
+    from tracker.login_events le
+    where le.user_id = p.id
   ) l on true
   order by p.created_at asc;
 end;
 $$;
 
 grant execute on function tracker.admin_user_overview() to authenticated;
+
+-- Platform-wide spend totals only — a single row, no per-user breakdown.
+-- This is the only way spend numbers reach the admin at all.
+create or replace function tracker.admin_spend_totals()
+returns table (
+  spend_today numeric,
+  spend_this_month numeric,
+  active_users int,
+  total_users int
+)
+language plpgsql
+security definer
+set search_path = tracker
+as $$
+begin
+  if not tracker.is_admin_or_above() then
+    raise exception 'Admin access required.';
+  end if;
+
+  return query
+  select
+    coalesce((select sum(amount) from tracker.expenses where spent_on = current_date), 0),
+    coalesce((select sum(amount) from tracker.expenses where spent_on >= date_trunc('month', current_date)::date), 0),
+    (select count(*) from tracker.profiles where is_active)::int,
+    (select count(*) from tracker.profiles)::int;
+end;
+$$;
+
+grant execute on function tracker.admin_spend_totals() to authenticated;
 
 -- ============================================================
 -- 3c. Recommendations — user feedback to the admin, with an optional
@@ -343,6 +384,8 @@ create table if not exists tracker.recommendations (
   user_id uuid not null references auth.users(id) on delete cascade,
   message text not null,
   rating smallint check (rating between 1 and 5),
+  type text not null default 'recommendation'
+    check (type in ('recommendation', 'feature_request', 'complaint', 'cap_increase_request')),
   created_at timestamptz not null default now()
 );
 
@@ -361,6 +404,32 @@ create policy recommendations_admin_delete on tracker.recommendations
   for delete using (tracker.is_admin_or_above());
 
 create index if not exists recommendations_user_idx on tracker.recommendations (user_id, created_at desc);
+
+-- ============================================================
+-- 3d. Login security — event log (for the admin's login-count columns,
+-- privacy-safe replacement for showing spend) and failed-attempt lockout.
+-- Neither table has ANY client-facing RLS policy: they're written and read
+-- exclusively by the service-role-backed /api/login route. RLS is enabled
+-- with zero policies, which means default-deny for anon/authenticated —
+-- only service_role (which bypasses RLS entirely) can touch them.
+-- ============================================================
+create table if not exists tracker.login_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table tracker.login_events enable row level security;
+create index if not exists login_events_user_idx on tracker.login_events (user_id, created_at desc);
+
+create table if not exists tracker.login_attempts (
+  email text primary key,
+  attempt_count int not null default 0,
+  last_attempt_at timestamptz not null default now(),
+  locked_until timestamptz
+);
+
+alter table tracker.login_attempts enable row level security;
 
 -- ============================================================
 -- 4. Grants — a custom schema has NO default privileges, unlike "public"

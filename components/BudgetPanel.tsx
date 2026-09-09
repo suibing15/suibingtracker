@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase, Budget, Expense, Profile } from "@/lib/supabaseClient";
 import { CATEGORIES, categoryByKey, formatMoney } from "@/lib/config";
 
-type Props = { profile: Profile; expenses: Expense[]; bare?: boolean };
+type Props = { profile: Profile; expenses: Expense[]; bare?: boolean; onProfileChanged?: () => void };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const monthStartIso = () => {
@@ -47,7 +47,7 @@ function ProgressBar({ spent, limit }: { spent: number; limit: number }) {
   );
 }
 
-export default function BudgetPanel({ profile, expenses, bare = false }: Props) {
+export default function BudgetPanel({ profile, expenses, bare = false, onProfileChanged }: Props) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(CATEGORIES[0].key);
@@ -56,6 +56,65 @@ export default function BudgetPanel({ profile, expenses, bare = false }: Props) 
   const [status, setStatus] = useState<{ kind: "idle" | "busy" | "error"; msg?: string }>({
     kind: "idle",
   });
+
+  const [dailyCapInput, setDailyCapInput] = useState(profile.daily_budget?.toString() ?? "");
+  const [monthlyCapInput, setMonthlyCapInput] = useState(profile.monthly_budget?.toString() ?? "");
+  const [capStatus, setCapStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string; field?: string }>({
+    kind: "idle",
+  });
+  const [showCapRequest, setShowCapRequest] = useState(false);
+  const [capRequestMsg, setCapRequestMsg] = useState("");
+  const [capRequestStatus, setCapRequestStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({
+    kind: "idle",
+  });
+
+  async function saveCap(field: "daily_budget" | "monthly_budget", rawValue: string) {
+    const current = field === "daily_budget" ? profile.daily_budget : profile.monthly_budget;
+    const num = rawValue.trim() ? parseFloat(rawValue) : null;
+
+    if (rawValue.trim() && (!num || num <= 0)) {
+      setCapStatus({ kind: "error", field, msg: "Enter an amount greater than zero, or clear it to remove your cap." });
+      return;
+    }
+    if (current != null && num != null && num > current) {
+      setCapStatus({
+        kind: "error",
+        field,
+        msg: "You can lower your cap anytime, but raising it needs admin approval — use the request below instead.",
+      });
+      return;
+    }
+
+    setCapStatus({ kind: "busy", field });
+    const { error } = await supabase.from("profiles").update({ [field]: num }).eq("id", profile.id);
+    if (error) {
+      setCapStatus({ kind: "error", field, msg: error.message });
+      return;
+    }
+    setCapStatus({ kind: "ok", field, msg: "Saved." });
+    onProfileChanged?.();
+  }
+
+  async function submitCapRequest() {
+    if (!capRequestMsg.trim()) {
+      setCapRequestStatus({ kind: "error", msg: "Say what you'd like your cap raised to, and why." });
+      return;
+    }
+    setCapRequestStatus({ kind: "busy" });
+    const { error } = await supabase.from("recommendations").insert({
+      user_id: profile.id,
+      message: capRequestMsg.trim(),
+      rating: null,
+      type: "cap_increase_request",
+    });
+    if (error) {
+      setCapRequestStatus({ kind: "error", msg: error.message });
+      return;
+    }
+    setCapRequestMsg("");
+    setShowCapRequest(false);
+    setCapRequestStatus({ kind: "ok", msg: "Request sent to the admin." });
+  }
 
   const loadBudgets = async () => {
     setLoading(true);
@@ -188,9 +247,84 @@ export default function BudgetPanel({ profile, expenses, bare = false }: Props) 
       )}
       {!profile.daily_budget && !profile.monthly_budget && (
         <p className="empty">
-          No overall spend cap set yet. Ask your admin to set a daily or monthly cap from the admin panel.
+          No overall spend cap set yet — set one below to hold yourself to it.
         </p>
       )}
+
+      <div className="cap-edit">
+        <span className="label">Your caps (self-set)</span>
+        <p className="hint">
+          You can set or lower these anytime — a commitment device against your own spending. Raising an
+          existing cap needs admin approval; use the request below for that.
+        </p>
+        <div className="cap-edit-row">
+          <label className="field">
+            <span>Daily cap (₦)</span>
+            <input
+              className="tab-nums"
+              inputMode="decimal"
+              value={dailyCapInput}
+              onChange={(e) => setDailyCapInput(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder="No cap"
+            />
+          </label>
+          <button
+            className="save-btn"
+            onClick={() => saveCap("daily_budget", dailyCapInput)}
+            disabled={capStatus.kind === "busy" && capStatus.field === "daily_budget"}
+          >
+            Save
+          </button>
+        </div>
+        {capStatus.field === "daily_budget" && capStatus.msg && (
+          <p className={`cap-msg ${capStatus.kind}`}>{capStatus.msg}</p>
+        )}
+
+        <div className="cap-edit-row">
+          <label className="field">
+            <span>Monthly cap (₦)</span>
+            <input
+              className="tab-nums"
+              inputMode="decimal"
+              value={monthlyCapInput}
+              onChange={(e) => setMonthlyCapInput(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder="No cap"
+            />
+          </label>
+          <button
+            className="save-btn"
+            onClick={() => saveCap("monthly_budget", monthlyCapInput)}
+            disabled={capStatus.kind === "busy" && capStatus.field === "monthly_budget"}
+          >
+            Save
+          </button>
+        </div>
+        {capStatus.field === "monthly_budget" && capStatus.msg && (
+          <p className={`cap-msg ${capStatus.kind}`}>{capStatus.msg}</p>
+        )}
+
+        {!showCapRequest ? (
+          <button className="link-btn" onClick={() => setShowCapRequest(true)}>
+            Need a higher cap? Send a request →
+          </button>
+        ) : (
+          <div className="cap-request">
+            <textarea
+              value={capRequestMsg}
+              onChange={(e) => setCapRequestMsg(e.target.value)}
+              placeholder="e.g. Please raise my monthly cap to ₦50,000 — my rent went up."
+              rows={2}
+            />
+            <div className="cap-request-actions">
+              <button className="save-btn" onClick={submitCapRequest} disabled={capRequestStatus.kind === "busy"}>
+                {capRequestStatus.kind === "busy" ? "Sending…" : "Send request"}
+              </button>
+              <button className="cancel-btn" onClick={() => setShowCapRequest(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {capRequestStatus.msg && <p className={`cap-msg ${capRequestStatus.kind}`}>{capRequestStatus.msg}</p>}
+      </div>
 
       <div className="divider" />
 
@@ -308,6 +442,87 @@ export default function BudgetPanel({ profile, expenses, bare = false }: Props) 
           background: var(--line);
           margin: 22px 0;
         }
+        .cap-edit {
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid var(--line);
+        }
+        .cap-edit .hint {
+          color: var(--text-faint);
+          font-size: 12px;
+          line-height: 1.6;
+          margin: 6px 0 14px;
+        }
+        .cap-edit-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 10px;
+          margin-bottom: 6px;
+        }
+        .cap-edit-row .field {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 0;
+        }
+        .cap-edit-row .field span {
+          font-size: 12px;
+          color: var(--text-dim);
+        }
+        .save-btn {
+          background: var(--amber);
+          color: #201603;
+          border: none;
+          border-radius: var(--radius-sm);
+          padding: 10px 16px;
+          font-weight: 600;
+          font-size: 13px;
+          white-space: nowrap;
+        }
+        .save-btn:disabled {
+          opacity: 0.6;
+        }
+        .cap-msg {
+          font-size: 12px;
+          margin: 4px 0 14px;
+          line-height: 1.5;
+        }
+        .cap-msg.error {
+          color: var(--coral);
+        }
+        .cap-msg.ok {
+          color: var(--mint);
+        }
+        .link-btn {
+          background: transparent;
+          border: none;
+          color: var(--amber);
+          font-size: 12px;
+          font-weight: 600;
+          padding: 4px 0;
+          margin-top: 6px;
+        }
+        .cap-request {
+          margin-top: 10px;
+          background: var(--ink);
+          border: 1px solid var(--line-strong);
+          border-radius: var(--radius-sm);
+          padding: 12px;
+        }
+        .cap-request-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+        .cancel-btn {
+          background: transparent;
+          border: 1px solid var(--line-strong);
+          color: var(--text-dim);
+          border-radius: var(--radius-sm);
+          padding: 10px 16px;
+          font-size: 13px;
+        }
         .label {
           font-size: 12px;
           color: var(--text-dim);
@@ -365,16 +580,21 @@ export default function BudgetPanel({ profile, expenses, bare = false }: Props) 
           margin-top: 18px;
         }
         select,
-        input {
+        input,
+        textarea {
           background: var(--ink);
           border: 1px solid var(--line-strong);
           border-radius: var(--radius-sm);
           color: var(--text);
           padding: 10px 12px;
           font-size: 13px;
+          width: 100%;
+          font-family: inherit;
+          resize: vertical;
         }
         select:focus,
-        input:focus {
+        input:focus,
+        textarea:focus {
           outline: none;
           border-color: var(--amber);
         }

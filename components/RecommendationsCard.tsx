@@ -1,16 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase, Recommendation } from "@/lib/supabaseClient";
+import { supabase, Recommendation, RecommendationType } from "@/lib/supabaseClient";
 import CollapsibleCard from "./CollapsibleCard";
 
 type NameLookup = Record<string, { name: string; email: string }>;
+
+const TYPE_LABELS: Record<RecommendationType, string> = {
+  recommendation: "Recommendation",
+  feature_request: "Feature request",
+  complaint: "Complaint",
+  cap_increase_request: "Cap increase request",
+};
+
+const FILTER_OPTIONS: { value: "all" | RecommendationType; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "recommendation", label: "Recommendations" },
+  { value: "feature_request", label: "Feature requests" },
+  { value: "complaint", label: "Complaints" },
+  { value: "cap_increase_request", label: "Cap increase requests" },
+];
 
 export default function RecommendationsCard() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [names, setNames] = useState<NameLookup>({});
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | RecommendationType>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +57,11 @@ export default function RecommendationsCard() {
     load();
   }
 
+  const filteredRecs = useMemo(
+    () => (filter === "all" ? recs : recs.filter((r) => r.type === filter)),
+    [recs, filter]
+  );
+
   const byUser = useMemo(() => {
     const counts = new Map<string, { count: number; avgRating: number | null; ratingSum: number; ratingCount: number }>();
     for (const r of recs) {
@@ -66,7 +87,7 @@ export default function RecommendationsCard() {
   return (
     <CollapsibleCard
       eyebrow="Admin"
-      title="Recommendations"
+      title="Recommendations & feedback"
       subtitle="What users are telling you, and how much each one is engaging with feedback."
       badge={`${recs.length} total`}
       defaultOpen={false}
@@ -79,7 +100,7 @@ export default function RecommendationsCard() {
 
           {byUser.rows.length > 0 && (
             <div className="chart">
-              <span className="chart-label">Recommendations per user</span>
+              <span className="chart-label">Submissions per user (all types)</span>
               {byUser.rows.map((r) => (
                 <div className="chart-row" key={r.userId}>
                   <span className="chart-name">{r.name}</span>
@@ -95,14 +116,27 @@ export default function RecommendationsCard() {
             </div>
           )}
 
+          <div className="filter-row">
+            {FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`filter-btn ${filter === opt.value ? "on" : ""}`}
+                onClick={() => setFilter(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <div className="list">
-            {recs.length === 0 ? (
-              <p className="empty">No recommendations submitted yet.</p>
+            {filteredRecs.length === 0 ? (
+              <p className="empty">Nothing here yet.</p>
             ) : (
-              recs.map((r) => (
+              filteredRecs.map((r) => (
                 <div className="rec" key={r.id}>
                   <div className="rec-head">
                     <span className="rec-name">{names[r.user_id]?.name ?? "Unknown"}</span>
+                    <span className={`type-chip type-${r.type}`}>{TYPE_LABELS[r.type]}</span>
                     {r.rating != null && <span className="rec-stars">{"★".repeat(r.rating)}</span>}
                     <span className="rec-date">
                       {new Date(r.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
@@ -187,10 +221,57 @@ export default function RecommendationsCard() {
           border-radius: var(--radius-sm);
           padding: 14px 16px;
         }
+        .filter-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 18px;
+        }
+        .filter-btn {
+          background: var(--ink);
+          border: 1px solid var(--line-strong);
+          color: var(--text-dim);
+          border-radius: 999px;
+          padding: 6px 13px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .filter-btn.on {
+          background: var(--amber);
+          border-color: var(--amber);
+          color: #201603;
+          font-weight: 600;
+        }
+        .type-chip {
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          border-radius: 999px;
+          padding: 3px 9px;
+          white-space: nowrap;
+        }
+        .type-recommendation {
+          background: rgba(79, 209, 165, 0.15);
+          color: var(--mint);
+        }
+        .type-feature_request {
+          background: rgba(232, 163, 61, 0.15);
+          color: var(--amber);
+        }
+        .type-complaint {
+          background: rgba(240, 106, 106, 0.15);
+          color: var(--coral);
+        }
+        .type-cap_increase_request {
+          background: rgba(154, 163, 184, 0.15);
+          color: var(--text-dim);
+        }
         .rec-head {
           display: flex;
           align-items: center;
-          gap: 10px;
+          flex-wrap: wrap;
+          gap: 8px 10px;
           margin-bottom: 8px;
         }
         .rec-name {

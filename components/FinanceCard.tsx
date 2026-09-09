@@ -29,7 +29,7 @@ export default function FinanceCard({ profile, allExpenses, onIncomeSaved }: Pro
       <div className="sections">
         {showBudgets && (
           <div className="section">
-            <BudgetPanel profile={profile} expenses={allExpenses} bare />
+            <BudgetPanel profile={profile} expenses={allExpenses} onProfileChanged={onIncomeSaved} bare />
           </div>
         )}
         {showProjector && (
