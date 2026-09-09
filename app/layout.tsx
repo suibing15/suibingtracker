@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth";
+import { ThemeProvider, noFlashThemeScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "suibingtracker — daily expenses",
-  description: "A personal daily expense tracker with dashboard, filters and PDF export.",
+  description: "A daily expense tracker with dashboard, filters, budgets and PDF export.",
 };
 
 export default function RootLayout({
@@ -13,7 +15,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
+      </head>
+      <body>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

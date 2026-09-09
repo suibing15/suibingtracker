@@ -1,14 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, Expense, Profile } from "@/lib/supabaseClient";
 import { CATEGORIES, PAYMENT_METHODS } from "@/lib/config";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const monthStart = () => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+};
 
-type Props = { onSaved: () => void };
+type Props = {
+  userId: string;
+  profile: Profile | null;
+  allExpenses: Expense[];
+  onSaved: () => void;
+};
 
-export default function ExpenseForm({ onSaved }: Props) {
+export default function ExpenseForm({ userId, profile, allExpenses, onSaved }: Props) {
   const [spentOn, setSpentOn] = useState(today());
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0].key);
@@ -30,8 +39,34 @@ export default function ExpenseForm({ onSaved }: Props) {
       return;
     }
 
+    // Accountability nudge: if this pushes the user over their admin-set
+    // daily or monthly cap, make them actively confirm rather than silently
+    // logging it. Doesn't block — a real spend still needs to be recorded.
+    if (spentOn === today() && (profile?.daily_budget || profile?.monthly_budget)) {
+      const spentToday = allExpenses
+        .filter((e) => e.spent_on === today())
+        .reduce((s, e) => s + Number(e.amount), 0);
+      const spentThisMonth = allExpenses
+        .filter((e) => e.spent_on >= monthStart())
+        .reduce((s, e) => s + Number(e.amount), 0);
+
+      const overDaily = profile.daily_budget != null && spentToday + numAmount > profile.daily_budget;
+      const overMonthly = profile.monthly_budget != null && spentThisMonth + numAmount > profile.monthly_budget;
+
+      if (overDaily || overMonthly) {
+        const parts = [];
+        if (overDaily) parts.push(`your daily cap of ${profile.daily_budget!.toLocaleString()}`);
+        if (overMonthly) parts.push(`your monthly cap of ${profile.monthly_budget!.toLocaleString()}`);
+        const proceed = confirm(
+          `This expense pushes you over ${parts.join(" and ")}. Log it anyway?`
+        );
+        if (!proceed) return;
+      }
+    }
+
     setStatus({ kind: "saving" });
     const { error } = await supabase.from("expenses").insert({
+      user_id: userId,
       spent_on: spentOn,
       title: title.trim(),
       category,

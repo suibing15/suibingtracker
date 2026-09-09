@@ -1,12 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase, Expense, isConfigured } from "@/lib/supabaseClient";
-import { formatDate } from "@/lib/config";
+import { formatDate, hasFeature } from "@/lib/config";
+import { useAuth } from "@/lib/auth";
 import ExpenseForm from "@/components/ExpenseForm";
 import Dashboard from "@/components/Dashboard";
 import FilterBar, { Filters } from "@/components/FilterBar";
-import ExpenseTable from "@/components/ExpenseTable";
+import EntriesManager from "@/components/EntriesManager";
+import ReportsBar from "@/components/ReportsBar";
+import BudgetPanel from "@/components/BudgetPanel";
+import ExpenseProjector from "@/components/ExpenseProjector";
+import IncomeWarning from "@/components/IncomeWarning";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const isoDaysAgo = (n: number) => {
   const d = new Date();
@@ -18,6 +26,8 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const configured = isConfigured;
 
 export default function Home() {
+  const router = useRouter();
+  const { loading: authLoading, session, profile, superAdminExists, signOut, refreshProfile } = useAuth();
   const [all, setAll] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +39,7 @@ export default function Home() {
   });
 
   const load = useCallback(async () => {
-    if (!configured) {
+    if (!configured || !session) {
       setLoading(false);
       return;
     }
@@ -42,11 +52,28 @@ export default function Home() {
     if (error) setError(error.message);
     else setAll((data as Expense[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [session]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!session) {
+      router.replace(superAdminExists === false ? "/setup" : "/login");
+      return;
+    }
     load();
-  }, [load]);
+  }, [authLoading, session, superAdminExists, router, load]);
+
+  // If an admin deactivates this account while it's open in another tab,
+  // pick that up as soon as the tab regains focus rather than only on the
+  // next full page load.
+  useEffect(() => {
+    if (!session) return;
+    function onVisible() {
+      if (document.visibilityState === "visible") refreshProfile();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [session, refreshProfile]);
 
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
@@ -82,6 +109,23 @@ export default function Home() {
     }
   };
 
+  if (!authLoading && configured && !session) {
+    // Redirect is in flight (see effect above); render nothing to avoid a
+    // flash of the tracker before it lands on /login or /setup.
+    return null;
+  }
+
+  if (profile && !profile.is_active) {
+    return (
+      <main className="wrap">
+        <div className="notice err">
+          Your account has been deactivated. Contact your admin to have it re-enabled.
+        </div>
+        <button className="signout-standalone" onClick={() => signOut()}>Sign out</button>
+      </main>
+    );
+  }
+
   return (
     <main className="wrap">
       <header className="topbar">
@@ -92,7 +136,16 @@ export default function Home() {
             <p>Daily expenses, tracked clean.</p>
           </div>
         </div>
-        <span className="pill">Naira · NGN</span>
+        <div className="topbar-right">
+          <ThemeToggle />
+          <span className="pill">Naira · NGN</span>
+          {profile?.role === "super_admin" && (
+            <Link href="/admin" className="admin-link">Admin</Link>
+          )}
+          {session && (
+            <button className="signout" onClick={() => signOut()}>Sign out</button>
+          )}
+        </div>
       </header>
 
       {!configured && (
@@ -109,18 +162,43 @@ export default function Home() {
       {error && <div className="notice err">Error: {error}</div>}
 
       <section className="stack">
-        <ExpenseForm onSaved={load} />
-        <Dashboard expenses={filtered} rangeLabel={rangeLabel} />
+        {session && (
+          <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} />
+        )}
+
         <FilterBar filters={filters} onChange={setFilters} onQuickRange={quickRange} />
+
         {loading ? (
-          <div className="loading">Loading your expenses…</div>
+          <div className="loading">Loading your dashboard…</div>
         ) : (
-          <ExpenseTable expenses={filtered} rangeLabel={rangeLabel} onChanged={load} />
+          <>
+            <Dashboard
+              expenses={filtered}
+              rangeLabel={rangeLabel}
+              showCategoryBreakdown={hasFeature(profile?.features, "category_insights")}
+            />
+            {profile && hasFeature(profile.features, "budgets") && (
+              <BudgetPanel profile={profile} expenses={all} />
+            )}
+            {profile && hasFeature(profile.features, "expense_projector") && (
+              <ExpenseProjector profile={profile} expenses={all} />
+            )}
+            {profile && hasFeature(profile.features, "income_warning") && (
+              <IncomeWarning profile={profile} expenses={all} onSaved={refreshProfile} />
+            )}
+            <ReportsBar
+              expenses={filtered}
+              rangeLabel={rangeLabel}
+              pdfEnabled={hasFeature(profile?.features, "pdf_export")}
+              csvEnabled={hasFeature(profile?.features, "csv_export")}
+            />
+            <EntriesManager expenses={filtered} onChanged={load} />
+          </>
         )}
       </section>
 
       <footer className="foot">
-        <span>Built to be extended · categories, budgets and auth are next.</span>
+        <span>Personal spend, tracked clean · budgets, accounts and features are admin-managed.</span>
       </footer>
 
       <style jsx>{`
@@ -164,6 +242,43 @@ export default function Home() {
           border: 1px solid var(--line-strong);
           border-radius: 999px;
           padding: 8px 16px;
+        }
+        .topbar-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .admin-link {
+          color: var(--text-dim);
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
+          border: 1px solid var(--line-strong);
+          border-radius: var(--radius-sm);
+          padding: 8px 14px;
+        }
+        .admin-link:hover {
+          color: var(--text);
+          border-color: var(--amber);
+        }
+        .signout {
+          background: transparent;
+          border: none;
+          color: var(--text-faint);
+          font-size: 13px;
+          padding: 8px 4px;
+        }
+        .signout:hover {
+          color: var(--coral);
+        }
+        .signout-standalone {
+          margin-top: 16px;
+          background: transparent;
+          border: 1px solid var(--line-strong);
+          color: var(--text);
+          border-radius: var(--radius-sm);
+          padding: 10px 18px;
+          font-size: 14px;
         }
         .notice {
           background: rgba(232, 163, 61, 0.1);

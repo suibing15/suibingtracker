@@ -1,7 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
 
-:root {
-  /* Ledger-at-dusk palette */
+:root,
+:root[data-theme="dark"] {
+  /* Ledger-at-dusk palette (default) */
   --ink: #141b2e;
   --ink-2: #1c2540;
   --ink-3: #263056;
@@ -16,6 +17,8 @@
   --text-faint: #6b7594;
   --line: rgba(245, 241, 232, 0.09);
   --line-strong: rgba(245, 241, 232, 0.16);
+  --bg-glow-1: rgba(232, 163, 61, 0.12);
+  --bg-glow-2: rgba(79, 209, 165, 0.08);
 
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
@@ -23,6 +26,34 @@
   --radius: 16px;
   --radius-sm: 10px;
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  /* Ledger-at-noon palette — same variable names, so every component
+     that already references var(--ink), var(--text), etc. re-themes for
+     free with no component changes needed. */
+  --ink: #fbfaf6;
+  --ink-2: #f2efe6;
+  --ink-3: #e7e2d3;
+  --parchment: #1c2540;
+  --parchment-dim: #263056;
+  --amber: #c47f14;
+  --amber-soft: #e0a94a;
+  --mint: #1f9c73;
+  --coral: #d1483f;
+  --text: #21283b;
+  --text-dim: #565f78;
+  --text-faint: #838ba3;
+  --line: rgba(33, 40, 59, 0.09);
+  --line-strong: rgba(33, 40, 59, 0.16);
+  --bg-glow-1: rgba(196, 127, 20, 0.08);
+  --bg-glow-2: rgba(31, 156, 115, 0.06);
+
+  --shadow: 0 24px 60px -24px rgba(33, 40, 59, 0.18);
+
+  color-scheme: light;
 }
 
 * {
@@ -34,13 +65,14 @@
 html,
 body {
   background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(232, 163, 61, 0.12), transparent 60%),
-    radial-gradient(900px 500px at -5% 10%, rgba(79, 209, 165, 0.08), transparent 55%),
+    radial-gradient(1200px 600px at 80% -10%, var(--bg-glow-1), transparent 60%),
+    radial-gradient(900px 500px at -5% 10%, var(--bg-glow-2), transparent 55%),
     var(--ink);
   color: var(--text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .tab-nums {

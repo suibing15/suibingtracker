@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import { Expense } from "@/lib/supabaseClient";
 import { categoryByKey, formatMoney } from "@/lib/config";
 
-type Props = { expenses: Expense[]; rangeLabel: string };
+type Props = { expenses: Expense[]; rangeLabel: string; showCategoryBreakdown?: boolean };
 
-export default function Dashboard({ expenses, rangeLabel }: Props) {
+export default function Dashboard({ expenses, rangeLabel, showCategoryBreakdown = true }: Props) {
   const stats = useMemo(() => {
     const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
     const count = expenses.length;
@@ -39,7 +39,7 @@ export default function Dashboard({ expenses, rangeLabel }: Props) {
   }, [expenses]);
 
   return (
-    <div className="dash">
+    <div className={`dash ${showCategoryBreakdown ? "" : "single"}`}>
       {/* SIGNATURE: spend pulse */}
       <div className="pulse-card">
         <div className="pulse-top">
@@ -76,40 +76,45 @@ export default function Dashboard({ expenses, rangeLabel }: Props) {
       </div>
 
       {/* category breakdown */}
-      <div className="break-card">
-        <span className="eyebrow">Where it went</span>
-        {stats.cats.length === 0 ? (
-          <p className="empty">Add an expense to see the breakdown.</p>
-        ) : (
-          <ul className="cat-list">
-            {stats.cats.map((c) => {
-              const pct = stats.total ? (c.value / stats.total) * 100 : 0;
-              return (
-                <li key={c.key}>
-                  <div className="cat-head">
-                    <span className="dot" style={{ background: c.color }} />
-                    <span className="cat-name">{c.label}</span>
-                    <span className="cat-amt tab-nums">{formatMoney(c.value)}</span>
-                  </div>
-                  <div className="track">
-                    <div
-                      className="fill"
-                      style={{ width: `${pct}%`, background: c.color }}
-                    />
-                  </div>
-                  <span className="cat-pct tab-nums">{pct.toFixed(0)}%</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      {showCategoryBreakdown && (
+        <div className="break-card">
+          <span className="eyebrow">Where it went</span>
+          {stats.cats.length === 0 ? (
+            <p className="empty">Add an expense to see the breakdown.</p>
+          ) : (
+            <ul className="cat-list">
+              {stats.cats.map((c) => {
+                const pct = stats.total ? (c.value / stats.total) * 100 : 0;
+                return (
+                  <li key={c.key}>
+                    <div className="cat-head">
+                      <span className="dot" style={{ background: c.color }} />
+                      <span className="cat-name">{c.label}</span>
+                      <span className="cat-amt tab-nums">{formatMoney(c.value)}</span>
+                    </div>
+                    <div className="track">
+                      <div
+                        className="fill"
+                        style={{ width: `${pct}%`, background: c.color }}
+                      />
+                    </div>
+                    <span className="cat-pct tab-nums">{pct.toFixed(0)}%</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
 
       <style jsx>{`
         .dash {
           display: grid;
           grid-template-columns: 1.35fr 1fr;
           gap: 18px;
+        }
+        .dash.single {
+          grid-template-columns: 1fr;
         }
         .eyebrow {
           font-family: var(--font-display);
