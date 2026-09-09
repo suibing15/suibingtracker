@@ -6,6 +6,50 @@ import { formatMoney } from "@/lib/config";
 
 type Props = { expenses: Expense[]; income: IncomeEntry[]; bare?: boolean };
 
+const cardBox: React.CSSProperties = {
+  background: "linear-gradient(180deg, var(--ink-2), var(--ink))",
+  border: "1px solid var(--line-strong)",
+  borderRadius: "var(--radius)",
+  padding: 26,
+  boxShadow: "var(--shadow)",
+};
+const bareBox: React.CSSProperties = { background: "none", border: "none", boxShadow: "none", padding: 0 };
+const eyebrowStyle: React.CSSProperties = {
+  fontFamily: "var(--font-display)",
+  fontSize: 11,
+  letterSpacing: "0.22em",
+  textTransform: "uppercase",
+  color: "var(--amber)",
+  display: "block",
+};
+const h2Style: React.CSSProperties = {
+  fontFamily: "var(--font-display)",
+  fontWeight: 600,
+  fontSize: 20,
+  marginTop: 6,
+  marginBottom: 18,
+};
+const gridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: 12,
+  marginBottom: 16,
+};
+const statStyle: React.CSSProperties = {
+  background: "var(--ink)",
+  border: "1px solid var(--line)",
+  borderRadius: "var(--radius-sm)",
+  padding: "14px 16px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  minWidth: 0,
+};
+const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-faint)" };
+const valueStyle: React.CSSProperties = { fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16 };
+const explainStyle: React.CSSProperties = { color: "var(--text-dim)", fontSize: 13, lineHeight: 1.6 };
+const emptyStyle: React.CSSProperties = { color: "var(--text-faint)", fontSize: 13 };
+
 export default function IncomeProjector({ expenses, income, bare = false }: Props) {
   const stats = useMemo(() => {
     const now = new Date();
@@ -30,17 +74,18 @@ export default function IncomeProjector({ expenses, income, bare = false }: Prop
     return { incomeSoFar, spendSoFar, projectedIncome, projectedSpend, projectedNet, daysElapsed, daysInMonth };
   }, [expenses, income]);
 
+  const boxStyle = { ...cardBox, ...(bare ? bareBox : {}) };
+
   if (stats.incomeSoFar === 0) {
     return (
-      <div className={`projector-card ${bare ? "bare" : ""}`}>
+      <div style={boxStyle}>
         {!bare && (
           <>
-            <span className="eyebrow">Looking ahead</span>
-            <h2>Income projection</h2>
+            <span style={eyebrowStyle}>Looking ahead</span>
+            <h2 style={h2Style}>Income projection</h2>
           </>
         )}
-        <p className="empty">Log some income this month to see a projected month-end savings estimate here.</p>
-        <style jsx>{cardStyles}</style>
+        <p style={emptyStyle}>Log some income this month to see a projected month-end savings estimate here.</p>
       </div>
     );
   }
@@ -48,117 +93,44 @@ export default function IncomeProjector({ expenses, income, bare = false }: Prop
   const netPositive = stats.projectedNet >= 0;
 
   return (
-    <div className={`projector-card ${bare ? "bare" : ""}`}>
+    <div style={boxStyle}>
       {!bare && (
         <>
-          <span className="eyebrow">Looking ahead</span>
-          <h2>Income projection</h2>
+          <span style={eyebrowStyle}>Looking ahead</span>
+          <h2 style={h2Style}>Income projection</h2>
         </>
       )}
 
-      <div className="grid">
-        <div className="stat">
-          <span className="label">Projected income</span>
-          <span className="value mint tab-nums">{formatMoney(stats.projectedIncome)}</span>
+      <div style={gridStyle}>
+        <div style={statStyle}>
+          <span style={labelStyle}>Projected income</span>
+          <span className="tab-nums" style={{ ...valueStyle, color: "var(--mint)" }}>
+            {formatMoney(stats.projectedIncome)}
+          </span>
         </div>
-        <div className="stat">
-          <span className="label">Projected spend</span>
-          <span className="value amber tab-nums">{formatMoney(stats.projectedSpend)}</span>
+        <div style={statStyle}>
+          <span style={labelStyle}>Projected spend</span>
+          <span className="tab-nums" style={{ ...valueStyle, color: "var(--amber)" }}>
+            {formatMoney(stats.projectedSpend)}
+          </span>
         </div>
-        <div className="stat">
-          <span className="label">Projected net savings</span>
-          <span className={`value tab-nums ${netPositive ? "mint" : "coral"}`}>
+        <div style={statStyle}>
+          <span style={labelStyle}>Projected net savings</span>
+          <span
+            className="tab-nums"
+            style={{ ...valueStyle, color: netPositive ? "var(--mint)" : "var(--coral)" }}
+          >
             {netPositive ? "+" : ""}
             {formatMoney(stats.projectedNet)}
           </span>
         </div>
       </div>
 
-      <p className="explain">
+      <p style={explainStyle}>
         Based on {formatMoney(stats.incomeSoFar)} logged so far this month (day {stats.daysElapsed} of{" "}
         {stats.daysInMonth}). A simple estimate from current pace on both sides — it'll adjust as you log more
         income and expenses.
       </p>
-
-      <style jsx>{cardStyles}</style>
     </div>
   );
 }
-
-const cardStyles = `
-  .projector-card {
-    background: linear-gradient(180deg, var(--ink-2), var(--ink));
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    padding: 26px;
-    box-shadow: var(--shadow);
-  }
-  .projector-card.bare {
-    background: none;
-    border: none;
-    box-shadow: none;
-    padding: 0;
-  }
-  .eyebrow {
-    font-family: var(--font-display);
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--amber);
-  }
-  h2 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 20px;
-    margin-top: 6px;
-    margin-bottom: 18px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .stat {
-    background: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-  }
-  .label {
-    font-size: 11px;
-    color: var(--text-faint);
-  }
-  .value {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 16px;
-  }
-  .value.mint {
-    color: var(--mint);
-  }
-  .value.amber {
-    color: var(--amber);
-  }
-  .value.coral {
-    color: var(--coral);
-  }
-  .explain {
-    color: var(--text-dim);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .empty {
-    color: var(--text-faint);
-    font-size: 13px;
-  }
-  @media (max-width: 560px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
-  }
-`;

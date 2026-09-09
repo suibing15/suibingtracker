@@ -21,42 +21,62 @@ export default function ReportsBar({ expenses, rangeLabel, pdfEnabled, csvEnable
     const autoTable = (await import("jspdf-autotable")).default;
 
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 12;
     const navy: [number, number, number] = [20, 27, 46];
     const amber: [number, number, number] = [232, 163, 61];
+    const lightLine: [number, number, number] = [222, 214, 196];
+
+    // A thin border frame around the whole page — drawn once here, then
+    // reapplied per-page in the autoTable footer hook below (autoTable adds
+    // new pages itself when the table overflows one page).
+    function drawPageFrame() {
+      doc.setDrawColor(...lightLine);
+      doc.setLineWidth(0.4);
+      doc.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
+    }
+    drawPageFrame();
 
     doc.setFillColor(...navy);
-    doc.rect(0, 0, 210, 28, "F");
+    doc.rect(margin, margin, pageWidth - margin * 2, 26, "F");
     doc.setTextColor(245, 241, 232);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("suibingtracker", 14, 15);
+    doc.setFontSize(17);
+    doc.text("suibingtracker", margin + 8, margin + 12);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(232, 163, 61);
-    doc.text("Daily expense report", 14, 22);
+    doc.setFontSize(9);
+    doc.setTextColor(...amber);
+    doc.text("Daily expense report", margin + 8, margin + 19);
 
-    doc.setTextColor(60, 60, 60);
+    doc.setTextColor(70, 70, 70);
     doc.setFontSize(10);
-    doc.text(`Range: ${rangeLabel}`, 14, 38);
+    doc.text(`Range: ${rangeLabel}`, margin + 8, margin + 36);
     doc.text(
       `Generated: ${new Date().toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
       })}`,
-      14,
-      44
+      margin + 8,
+      margin + 42
     );
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
     doc.text(
       `Total: ${CURRENCY.symbol}${total.toLocaleString(CURRENCY.locale, { minimumFractionDigits: 2 })}`,
-      14,
-      50
+      margin + 8,
+      margin + 50
     );
     doc.setFont("helvetica", "normal");
 
+    doc.setDrawColor(...lightLine);
+    doc.setLineWidth(0.3);
+    doc.line(margin + 8, margin + 55, pageWidth - margin - 8, margin + 55);
+
     autoTable(doc, {
-      startY: 56,
+      startY: margin + 62,
+      margin: { left: margin + 8, right: margin + 8, bottom: margin + 12 },
       head: [["Date", "Title", "Category", "Paid with", "Amount (NGN)"]],
       body: expenses.map((e) => [
         formatDate(e.spent_on),
@@ -65,10 +85,21 @@ export default function ReportsBar({ expenses, rangeLabel, pdfEnabled, csvEnable
         e.payment_method,
         Number(e.amount).toLocaleString(CURRENCY.locale, { minimumFractionDigits: 2 }),
       ]),
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3.5, lineColor: lightLine, lineWidth: 0.2 },
       headStyles: { fillColor: amber, textColor: navy, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [245, 241, 232] },
+      alternateRowStyles: { fillColor: [248, 245, 238] },
       columnStyles: { 4: { halign: "right" } },
+      didDrawPage: () => {
+        // autoTable calls this once per page it creates — keep the frame
+        // and a page number on every page, not just the first.
+        drawPageFrame();
+        const pageNum = doc.getNumberOfPages();
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(140, 140, 140);
+        doc.text(`Page ${pageNum}`, pageWidth - margin - 8, pageHeight - margin - 4, { align: "right" });
+        doc.text("suibingtracker · Suibing IT Services", margin + 8, pageHeight - margin - 4);
+      },
     });
 
     // Stream straight to the browser (opens the PDF inline in a new tab)
