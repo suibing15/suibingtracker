@@ -85,7 +85,6 @@ export function isAdminRole(role: UserRole): boolean {
 export type FeatureKey =
   | "budgets"
   | "pdf_export"
-  | "category_insights"
   | "csv_export"
   | "expense_projector"
   | "income_warning";
@@ -100,11 +99,6 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
     key: "pdf_export",
     label: "PDF export",
     description: "Stream a PDF report of the currently filtered range straight to the browser.",
-  },
-  {
-    key: "category_insights",
-    label: "Category insights",
-    description: "The 'What did you spend on' category breakdown card.",
   },
   {
     key: "csv_export",
@@ -128,7 +122,6 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   budgets: true,
   pdf_export: true,
-  category_insights: true,
   csv_export: true,
   expense_projector: true,
   income_warning: true,

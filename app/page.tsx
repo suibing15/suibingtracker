@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import ExpenseForm from "@/components/ExpenseForm";
 import { Filters } from "@/components/FilterBar";
 import DashboardStats from "@/components/DashboardStats";
-import CategoryBreakdown from "@/components/CategoryBreakdown";
 import FinanceCard from "@/components/FinanceCard";
 import ReportsAndEntriesCard from "@/components/ReportsAndEntriesCard";
 import ManageUsersCard from "@/components/ManageUsersCard";
@@ -17,6 +16,7 @@ import MyAccountCard from "@/components/MyAccountCard";
 import CollapsibleCard from "@/components/CollapsibleCard";
 import NoticeBanner from "@/components/NoticeBanner";
 import NotificationBell from "@/components/NotificationBell";
+import LockedScreen from "@/components/LockedScreen";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const isoDaysAgo = (n: number) => {
@@ -167,14 +167,7 @@ export default function Home() {
   }
 
   if (profile && !profile.is_active) {
-    return (
-      <main className="wrap">
-        <div className="notice err">
-          Your account has been deactivated. Contact your admin to have it re-enabled.
-        </div>
-        <button className="signout-standalone" onClick={() => signOut()}>Sign out</button>
-      </main>
-    );
+    return <LockedScreen profile={profile} onSignOut={signOut} />;
   }
 
   return (
@@ -232,11 +225,6 @@ export default function Home() {
               <CollapsibleCard eyebrow="Log a spend" title="What did you spend on?">
                 <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} bare />
               </CollapsibleCard>
-            )}
-
-            {/* What did you spend on — category breakdown */}
-            {profile && hasFeature(profile.features, "category_insights") && (
-              <CategoryBreakdown expenses={filtered} rangeLabel={rangeLabel} />
             )}
 
             {/* 3. Budgets, projector & income — one combined card */}
@@ -329,15 +317,6 @@ export default function Home() {
         }
         .signout:hover {
           color: var(--coral);
-        }
-        .signout-standalone {
-          margin-top: 16px;
-          background: transparent;
-          border: 1px solid var(--line-strong);
-          color: var(--text);
-          border-radius: var(--radius-sm);
-          padding: 10px 18px;
-          font-size: 14px;
         }
         .notice {
           background: rgba(232, 163, 61, 0.1);
