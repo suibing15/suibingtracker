@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { supabase, Expense, Profile } from "@/lib/supabaseClient";
 import { formatMoney } from "@/lib/config";
 
-type Props = { profile: Profile; expenses: Expense[]; onSaved: () => void };
+type Props = { profile: Profile; expenses: Expense[]; onSaved: () => void; bare?: boolean };
 
-export default function IncomeWarning({ profile, expenses, onSaved }: Props) {
+export default function IncomeWarning({ profile, expenses, onSaved, bare = false }: Props) {
   const [editing, setEditing] = useState(profile.monthly_income == null);
   const [value, setValue] = useState(profile.monthly_income?.toString() ?? "");
   const [saving, setSaving] = useState(false);
@@ -47,7 +47,7 @@ export default function IncomeWarning({ profile, expenses, onSaved }: Props) {
   }
 
   return (
-    <div className={`income-card tone-${tone}`}>
+    <div className={`income-card tone-${tone} ${bare ? "bare" : ""}`}>
       <div className="head">
         <div>
           <span className="eyebrow">Keep it in perspective</span>
@@ -99,6 +99,12 @@ export default function IncomeWarning({ profile, expenses, onSaved }: Props) {
           border-radius: var(--radius);
           padding: 26px;
           box-shadow: var(--shadow);
+        }
+        .income-card.bare {
+          background: none;
+          border: none;
+          box-shadow: none;
+          padding: 0;
         }
         .head {
           display: flex;

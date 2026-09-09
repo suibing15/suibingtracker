@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase, Profile } from "@/lib/supabaseClient";
 import { callAdminApi } from "@/lib/auth";
-import { FEATURE_DEFS, FeatureKey, ROLE_LABELS, UserRole, hasFeature } from "@/lib/config";
+import { FEATURE_DEFS, FeatureKey, ROLE_LABELS, ASSIGNABLE_ROLES, UserRole, hasFeature } from "@/lib/config";
 
 type Props = {
   profile: Profile;
@@ -94,7 +94,7 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
         <div className="section">
           <span className="label">Role</span>
           <select value={role} onChange={(e) => setRole(e.target.value as UserRole)} disabled={isSelf}>
-            {(Object.keys(ROLE_LABELS) as UserRole[]).map((r) => (
+            {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>{ROLE_LABELS[r]}</option>
             ))}
           </select>

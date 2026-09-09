@@ -35,9 +35,11 @@ export function getSupabaseAdmin(): SupabaseClient<any, any, any> {
   return adminClient;
 }
 
-// Verifies a caller's access token belongs to an active super_admin.
-// Every admin API route calls this first before touching auth.users.
-export async function requireSuperAdmin(accessToken: string | undefined) {
+// Verifies a caller's access token belongs to an active admin-tier account
+// ('admin' or 'super_admin' — both get full capability, see lib/config.ts
+// isAdminRole). Every admin API route calls this first before touching
+// auth.users.
+export async function requireAdmin(accessToken: string | undefined) {
   const admin = getSupabaseAdmin();
   if (!accessToken) {
     throw new AuthError("Missing access token.");
@@ -54,8 +56,8 @@ export async function requireSuperAdmin(accessToken: string | undefined) {
   if (profileErr || !profile) {
     throw new AuthError("No profile found for this account.");
   }
-  if (profile.role !== "super_admin" || !profile.is_active) {
-    throw new AuthError("Super admin access required.");
+  if ((profile.role !== "super_admin" && profile.role !== "admin") || !profile.is_active) {
+    throw new AuthError("Admin access required.");
   }
   return { admin, callerId: userData.user.id as string };
 }

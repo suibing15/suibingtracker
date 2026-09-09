@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import { Expense, Profile } from "@/lib/supabaseClient";
 import { formatMoney } from "@/lib/config";
 
-type Props = { expenses: Expense[]; profile: Profile };
+type Props = { expenses: Expense[]; profile: Profile; bare?: boolean };
 
-export default function ExpenseProjector({ expenses, profile }: Props) {
+export default function ExpenseProjector({ expenses, profile, bare = false }: Props) {
   const stats = useMemo(() => {
     const now = new Date();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -25,7 +25,7 @@ export default function ExpenseProjector({ expenses, profile }: Props) {
 
   if (stats.spentSoFar === 0) {
     return (
-      <div className="projector-card">
+      <div className={`projector-card ${bare ? "bare" : ""}`}>
         <span className="eyebrow">Looking ahead</span>
         <h2>Expense projector</h2>
         <p className="empty">Log a few expenses this month and this will estimate where you'll land by month end.</p>
@@ -35,7 +35,7 @@ export default function ExpenseProjector({ expenses, profile }: Props) {
   }
 
   return (
-    <div className="projector-card">
+    <div className={`projector-card ${bare ? "bare" : ""}`}>
       <span className="eyebrow">Looking ahead</span>
       <h2>Expense projector</h2>
       <div className="headline">
@@ -64,6 +64,12 @@ const cardStyles = `
     border-radius: var(--radius);
     padding: 26px;
     box-shadow: var(--shadow);
+  }
+  .projector-card.bare {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
   }
   .eyebrow {
     font-family: var(--font-display);

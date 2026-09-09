@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSuperAdmin, AuthError } from "@/lib/supabaseAdmin";
+import { requireAdmin, AuthError } from "@/lib/supabaseAdmin";
 
 function bearerToken(req: NextRequest): string | undefined {
   const header = req.headers.get("authorization") || "";
@@ -8,7 +8,7 @@ function bearerToken(req: NextRequest): string | undefined {
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { admin, callerId } = await requireSuperAdmin(bearerToken(req));
+    const { admin, callerId } = await requireAdmin(bearerToken(req));
     if (params.id === callerId) {
       return NextResponse.json({ error: "You can't delete your own account." }, { status: 400 });
     }
@@ -27,7 +27,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 // app doesn't have outbound email configured for reset links.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { admin } = await requireSuperAdmin(bearerToken(req));
+    const { admin } = await requireAdmin(bearerToken(req));
     const body = await req.json();
     const password: string = body.password || "";
     if (password.length < 8) {

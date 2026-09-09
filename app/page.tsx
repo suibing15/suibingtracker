@@ -2,18 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { supabase, Expense, isConfigured } from "@/lib/supabaseClient";
-import { formatDate, hasFeature } from "@/lib/config";
+import { formatDate, isAdminRole, hasFeature } from "@/lib/config";
 import { useAuth } from "@/lib/auth";
 import ExpenseForm from "@/components/ExpenseForm";
-import Dashboard from "@/components/Dashboard";
 import FilterBar, { Filters } from "@/components/FilterBar";
-import EntriesManager from "@/components/EntriesManager";
+import DashboardStats from "@/components/DashboardStats";
+import CategoryBreakdown from "@/components/CategoryBreakdown";
+import FinanceCard from "@/components/FinanceCard";
 import ReportsBar from "@/components/ReportsBar";
-import BudgetPanel from "@/components/BudgetPanel";
-import ExpenseProjector from "@/components/ExpenseProjector";
-import IncomeWarning from "@/components/IncomeWarning";
+import EntriesManager from "@/components/EntriesManager";
+import ManageUsersCard from "@/components/ManageUsersCard";
+import CollapsibleCard from "@/components/CollapsibleCard";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const isoDaysAgo = (n: number) => {
@@ -139,9 +139,6 @@ export default function Home() {
         <div className="topbar-right">
           <ThemeToggle />
           <span className="pill">Naira · NGN</span>
-          {profile?.role === "super_admin" && (
-            <Link href="/admin" className="admin-link">Admin</Link>
-          )}
           {session && (
             <button className="signout" onClick={() => signOut()}>Sign out</button>
           )}
@@ -172,27 +169,42 @@ export default function Home() {
           <div className="loading">Loading your dashboard…</div>
         ) : (
           <>
-            <Dashboard
-              expenses={filtered}
-              rangeLabel={rangeLabel}
-              showCategoryBreakdown={hasFeature(profile?.features, "category_insights")}
-            />
-            {profile && hasFeature(profile.features, "budgets") && (
-              <BudgetPanel profile={profile} expenses={all} />
+            {/* 1. Dashboard — quick totals + range pulse */}
+            <DashboardStats allExpenses={all} rangeExpenses={filtered} rangeLabel={rangeLabel} />
+
+            {/* 2. What did you spend on */}
+            {profile && hasFeature(profile.features, "category_insights") && (
+              <CategoryBreakdown expenses={filtered} rangeLabel={rangeLabel} />
             )}
-            {profile && hasFeature(profile.features, "expense_projector") && (
-              <ExpenseProjector profile={profile} expenses={all} />
+
+            {/* 3. Budgets, projector & income — one combined card */}
+            {profile && (
+              <FinanceCard profile={profile} allExpenses={all} onIncomeSaved={refreshProfile} />
             )}
-            {profile && hasFeature(profile.features, "income_warning") && (
-              <IncomeWarning profile={profile} expenses={all} onSaved={refreshProfile} />
+
+            {/* 4. Reports */}
+            {profile && (hasFeature(profile.features, "pdf_export") || hasFeature(profile.features, "csv_export")) && (
+              <CollapsibleCard
+                eyebrow="Export"
+                title="Reports"
+                subtitle="A PDF or CSV of whatever range is currently filtered above."
+              >
+                <ReportsBar
+                  expenses={filtered}
+                  rangeLabel={rangeLabel}
+                  pdfEnabled={hasFeature(profile.features, "pdf_export")}
+                  csvEnabled={hasFeature(profile.features, "csv_export")}
+                  bare
+                />
+              </CollapsibleCard>
             )}
-            <ReportsBar
-              expenses={filtered}
-              rangeLabel={rangeLabel}
-              pdfEnabled={hasFeature(profile?.features, "pdf_export")}
-              csvEnabled={hasFeature(profile?.features, "csv_export")}
-            />
+
             <EntriesManager expenses={filtered} onChanged={load} />
+
+            {/* 5. Manage users — admin-tier accounts only, same page as everyone else */}
+            {profile && isAdminRole(profile.role) && session && (
+              <ManageUsersCard currentUserId={session.user.id} />
+            )}
           </>
         )}
       </section>
@@ -247,19 +259,6 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 12px;
-        }
-        .admin-link {
-          color: var(--text-dim);
-          font-size: 13px;
-          font-weight: 600;
-          text-decoration: none;
-          border: 1px solid var(--line-strong);
-          border-radius: var(--radius-sm);
-          padding: 8px 14px;
-        }
-        .admin-link:hover {
-          color: var(--text);
-          border-color: var(--amber);
         }
         .signout {
           background: transparent;

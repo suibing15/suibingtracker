@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSuperAdmin, AuthError } from "@/lib/supabaseAdmin";
+import { requireAdmin, AuthError } from "@/lib/supabaseAdmin";
 import { UserRole } from "@/lib/config";
 
 function bearerToken(req: NextRequest): string | undefined {
@@ -9,7 +9,7 @@ function bearerToken(req: NextRequest): string | undefined {
 
 export async function POST(req: NextRequest) {
   try {
-    const { admin } = await requireSuperAdmin(bearerToken(req));
+    const { admin } = await requireAdmin(bearerToken(req));
     const body = await req.json();
     const email: string = (body.email || "").trim();
     const password: string = body.password || "";

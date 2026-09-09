@@ -8,9 +8,10 @@ type Props = {
   rangeLabel: string;
   pdfEnabled: boolean;
   csvEnabled: boolean;
+  bare?: boolean;
 };
 
-export default function ReportsBar({ expenses, rangeLabel, pdfEnabled, csvEnabled }: Props) {
+export default function ReportsBar({ expenses, rangeLabel, pdfEnabled, csvEnabled, bare = false }: Props) {
   if (!pdfEnabled && !csvEnabled) return null;
 
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
@@ -98,7 +99,7 @@ export default function ReportsBar({ expenses, rangeLabel, pdfEnabled, csvEnable
   }
 
   return (
-    <div className="reports-bar">
+    <div className={`reports-bar ${bare ? "bare" : ""}`}>
       <span className="label">Reports for this range</span>
       <div className="btns">
         {pdfEnabled && (
@@ -124,6 +125,12 @@ export default function ReportsBar({ expenses, rangeLabel, pdfEnabled, csvEnable
           border-radius: var(--radius);
           padding: 16px 22px;
           box-shadow: var(--shadow);
+        }
+        .reports-bar.bare {
+          background: none;
+          border: none;
+          box-shadow: none;
+          padding: 0;
         }
         .label {
           font-size: 13px;

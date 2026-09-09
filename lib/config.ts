@@ -59,11 +59,24 @@ export function formatDate(iso: string): string {
 // ============================================================
 export type UserRole = "super_admin" | "admin" | "user";
 
+// Both elevated tiers display as plain "Admin" — the distinction between
+// them was internal-only and confusing in practice. Full admin capability
+// (manage users, grant features, block/delete accounts) is available to
+// either; new admin accounts are created as 'super_admin' going forward.
+// 'admin' is kept only for backwards compatibility with any account
+// created while the two-tier system briefly existed.
 export const ROLE_LABELS: Record<UserRole, string> = {
-  super_admin: "Super admin",
+  super_admin: "Admin",
   admin: "Admin",
   user: "User",
 };
+
+// The only two roles offered when creating or editing an account.
+export const ASSIGNABLE_ROLES: UserRole[] = ["user", "super_admin"];
+
+export function isAdminRole(role: UserRole): boolean {
+  return role === "admin" || role === "super_admin";
+}
 
 // ============================================================
 // Feature flags — the super admin toggles these per user from /admin.
@@ -75,8 +88,7 @@ export type FeatureKey =
   | "category_insights"
   | "csv_export"
   | "expense_projector"
-  | "income_warning"
-  | "users_overview";
+  | "income_warning";
 
 export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string }[] = [
   {
@@ -92,7 +104,7 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
   {
     key: "category_insights",
     label: "Category insights",
-    description: "The 'Where it went' category breakdown on the dashboard.",
+    description: "The 'What did you spend on' category breakdown card.",
   },
   {
     key: "csv_export",
@@ -109,17 +121,10 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
     label: "Income warning",
     description: "Lets the user set their own monthly income and warns them as spend approaches it.",
   },
-  {
-    key: "users_overview",
-    label: "Users dashboard (admin-tier accounts)",
-    description:
-      "Read-only aggregate view of every account's spend totals — no individual expense details. Only meaningful for accounts with the 'Admin' role.",
-  },
 ];
 
-// New accounts get the everyday-user features on by default; the admin-tier
-// ones (users_overview) default off since they're only relevant once an
-// account is promoted to the 'admin' role.
+// New accounts get every feature on by default; the admin can turn any off
+// per account afterwards.
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   budgets: true,
   pdf_export: true,
@@ -127,7 +132,6 @@ export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   csv_export: true,
   expense_projector: true,
   income_warning: true,
-  users_overview: false,
 };
 
 export function hasFeature(

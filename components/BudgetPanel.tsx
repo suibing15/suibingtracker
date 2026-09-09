@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase, Budget, Expense, Profile } from "@/lib/supabaseClient";
 import { CATEGORIES, categoryByKey, formatMoney } from "@/lib/config";
 
-type Props = { profile: Profile; expenses: Expense[] };
+type Props = { profile: Profile; expenses: Expense[]; bare?: boolean };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const monthStartIso = () => {
@@ -47,7 +47,7 @@ function ProgressBar({ spent, limit }: { spent: number; limit: number }) {
   );
 }
 
-export default function BudgetPanel({ profile, expenses }: Props) {
+export default function BudgetPanel({ profile, expenses, bare = false }: Props) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(CATEGORIES[0].key);
@@ -139,7 +139,7 @@ export default function BudgetPanel({ profile, expenses }: Props) {
   };
 
   return (
-    <div className="budget-card">
+    <div className={`budget-card ${bare ? "bare" : ""}`}>
       <div className="head">
         <span className="eyebrow">Stay on track</span>
         <h2>Budgets & limits</h2>
@@ -253,6 +253,12 @@ export default function BudgetPanel({ profile, expenses }: Props) {
           border-radius: var(--radius);
           padding: 26px;
           box-shadow: var(--shadow);
+        }
+        .budget-card.bare {
+          background: none;
+          border: none;
+          box-shadow: none;
+          padding: 0;
         }
         .eyebrow {
           font-family: var(--font-display);

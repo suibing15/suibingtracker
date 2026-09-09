@@ -107,11 +107,11 @@ as $$
   );
 $$;
 
--- Broader than is_super_admin(): true for the 'admin' tier too. 'admin' is
--- read-only oversight (see profiles_update policy below, which still only
--- trusts is_super_admin()) — it can view the aggregate users overview if
--- granted the "users_overview" feature, but can't create, block, or modify
--- anyone.
+-- Broader than is_super_admin(): true for the 'admin' tier too. Both tiers
+-- get full capability in this app (manage users, grant features, block or
+-- delete accounts) — see profiles_update below and lib/config.ts
+-- isAdminRole(). The distinction between the two roles is kept only for
+-- backwards compatibility; the app's UI presents both simply as "Admin".
 create or replace function tracker.is_admin_or_above()
 returns boolean
 language sql
@@ -207,7 +207,7 @@ create policy profiles_select_own on tracker.profiles
 
 drop policy if exists profiles_update on tracker.profiles;
 create policy profiles_update on tracker.profiles
-  for update using (auth.uid() = id or tracker.is_super_admin());
+  for update using (auth.uid() = id or tracker.is_admin_or_above());
 
 -- No client-side insert/delete policies: rows are created by the
 -- tracker_on_auth_user_created trigger, and removed by the ON DELETE
