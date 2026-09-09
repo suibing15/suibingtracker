@@ -4,11 +4,15 @@ import { useMemo } from "react";
 import { Expense } from "@/lib/supabaseClient";
 import { formatMoney } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
+import FilterBar, { Filters } from "./FilterBar";
 
 type Props = {
   allExpenses: Expense[]; // for fixed quick-range tiles, independent of the active filter
   rangeExpenses: Expense[]; // whatever the filter bar currently selects
   rangeLabel: string;
+  filters: Filters;
+  onFiltersChange: (f: Filters) => void;
+  onQuickRange: (days: number | "month" | "all") => void;
 };
 
 function isoDaysAgo(n: number) {
@@ -17,7 +21,14 @@ function isoDaysAgo(n: number) {
   return d.toISOString().slice(0, 10);
 }
 
-export default function DashboardStats({ allExpenses, rangeExpenses, rangeLabel }: Props) {
+export default function DashboardStats({
+  allExpenses,
+  rangeExpenses,
+  rangeLabel,
+  filters,
+  onFiltersChange,
+  onQuickRange,
+}: Props) {
   const quick = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const sevenAgo = isoDaysAgo(6); // includes today = 7 days
@@ -55,7 +66,11 @@ export default function DashboardStats({ allExpenses, rangeExpenses, rangeLabel 
   }, [rangeExpenses]);
 
   return (
-    <CollapsibleCard eyebrow="Overview" title="Dashboard" subtitle="Quick totals, then the range you've filtered to.">
+    <CollapsibleCard eyebrow="Overview" title="Dashboard" subtitle="Filter your range, see quick totals, then the pulse.">
+      <div className="filter-slot">
+        <FilterBar filters={filters} onChange={onFiltersChange} onQuickRange={onQuickRange} bare />
+      </div>
+
       <div className="quick-grid">
         <div className="quick-tile">
           <span className="label">Last 7 days</span>
@@ -102,6 +117,11 @@ export default function DashboardStats({ allExpenses, rangeExpenses, rangeLabel 
       </div>
 
       <style jsx>{`
+        .filter-slot {
+          padding-bottom: 22px;
+          margin-bottom: 22px;
+          border-bottom: 1px solid var(--line);
+        }
         .quick-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);

@@ -48,8 +48,18 @@ export type Profile = {
   daily_budget: number | null;
   monthly_budget: number | null;
   monthly_income: number | null;
+  admin_notice: string | null;
+  admin_notice_set_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type Recommendation = {
+  id: string;
+  user_id: string;
+  message: string;
+  rating: number | null;
+  created_at: string;
 };
 
 // Shape returned by tracker.admin_user_overview() — aggregate numbers only,

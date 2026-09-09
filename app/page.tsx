@@ -6,14 +6,17 @@ import { supabase, Expense, isConfigured } from "@/lib/supabaseClient";
 import { formatDate, isAdminRole, hasFeature } from "@/lib/config";
 import { useAuth } from "@/lib/auth";
 import ExpenseForm from "@/components/ExpenseForm";
-import FilterBar, { Filters } from "@/components/FilterBar";
+import { Filters } from "@/components/FilterBar";
 import DashboardStats from "@/components/DashboardStats";
 import CategoryBreakdown from "@/components/CategoryBreakdown";
 import FinanceCard from "@/components/FinanceCard";
-import ReportsBar from "@/components/ReportsBar";
-import EntriesManager from "@/components/EntriesManager";
+import ReportsAndEntriesCard from "@/components/ReportsAndEntriesCard";
 import ManageUsersCard from "@/components/ManageUsersCard";
+import RecommendationsCard from "@/components/RecommendationsCard";
+import MyAccountCard from "@/components/MyAccountCard";
 import CollapsibleCard from "@/components/CollapsibleCard";
+import NoticeBanner from "@/components/NoticeBanner";
+import NotificationBell from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const isoDaysAgo = (n: number) => {
@@ -22,6 +25,7 @@ const isoDaysAgo = (n: number) => {
   return d.toISOString().slice(0, 10);
 };
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const NEW_REC_SEEN_KEY = "suibingtracker-recs-last-seen";
 
 const configured = isConfigured;
 
@@ -31,6 +35,7 @@ export default function Home() {
   const [all, setAll] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newRecCount, setNewRecCount] = useState(0);
   const [filters, setFilters] = useState<Filters>({
     from: isoDaysAgo(30),
     to: todayIso(),
@@ -75,6 +80,22 @@ export default function Home() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [session, refreshProfile]);
 
+  // Admin-tier: count recommendations submitted since the bell was last opened.
+  useEffect(() => {
+    if (!profile || !isAdminRole(profile.role)) return;
+    const lastSeen = window.localStorage.getItem(NEW_REC_SEEN_KEY) ?? "1970-01-01T00:00:00.000Z";
+    supabase
+      .from("recommendations")
+      .select("id", { count: "exact", head: true })
+      .gt("created_at", lastSeen)
+      .then(({ count }) => setNewRecCount(count ?? 0));
+  }, [profile]);
+
+  function markRecsSeen() {
+    window.localStorage.setItem(NEW_REC_SEEN_KEY, new Date().toISOString());
+    setNewRecCount(0);
+  }
+
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return all.filter((e) => {
@@ -109,6 +130,36 @@ export default function Home() {
     }
   };
 
+  // Alerts shown in the bell — kept lightweight and independent of the
+  // Budget/Income cards' own internal state, since this is just a summary.
+  const alerts = useMemo(() => {
+    if (!profile) return [];
+    const list: string[] = [];
+    const today = todayIso();
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+    const spendToday = all.filter((e) => e.spent_on === today).reduce((s, e) => s + Number(e.amount), 0);
+    const spendMonth = all.filter((e) => e.spent_on >= monthStart).reduce((s, e) => s + Number(e.amount), 0);
+
+    if (profile.daily_budget != null && spendToday > profile.daily_budget) {
+      list.push("You're over today's spending cap.");
+    }
+    if (profile.monthly_budget != null && spendMonth > profile.monthly_budget) {
+      list.push("You're over this month's spending cap.");
+    }
+    if (profile.monthly_income != null && profile.monthly_income > 0) {
+      const ratio = spendMonth / profile.monthly_income;
+      if (ratio >= 1) list.push("You've spent your whole month's income.");
+      else if (ratio >= 0.8) list.push("You're approaching your monthly income in spend.");
+    }
+    if (profile.admin_notice) {
+      list.push("Your admin left you a note at the top of the page.");
+    }
+    if (isAdminRole(profile.role) && newRecCount > 0) {
+      list.push(`${newRecCount} new recommendation${newRecCount === 1 ? "" : "s"} from users.`);
+    }
+    return list;
+  }, [profile, all, newRecCount]);
+
   if (!authLoading && configured && !session) {
     // Redirect is in flight (see effect above); render nothing to avoid a
     // flash of the tracker before it lands on /login or /setup.
@@ -138,12 +189,15 @@ export default function Home() {
         </div>
         <div className="topbar-right">
           <ThemeToggle />
+          {profile && <NotificationBell alerts={alerts} onOpen={isAdminRole(profile.role) ? markRecsSeen : undefined} />}
           <span className="pill">Naira · NGN</span>
           {session && (
             <button className="signout" onClick={() => signOut()}>Sign out</button>
           )}
         </div>
       </header>
+
+      {profile && <NoticeBanner profile={profile} />}
 
       {!configured && (
         <div className="notice">
@@ -159,20 +213,28 @@ export default function Home() {
       {error && <div className="notice err">Error: {error}</div>}
 
       <section className="stack">
-        {session && (
-          <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} />
-        )}
-
-        <FilterBar filters={filters} onChange={setFilters} onQuickRange={quickRange} />
-
         {loading ? (
           <div className="loading">Loading your dashboard…</div>
         ) : (
           <>
-            {/* 1. Dashboard — quick totals + range pulse */}
-            <DashboardStats allExpenses={all} rangeExpenses={filtered} rangeLabel={rangeLabel} />
+            {/* 1. Dashboard — filter controls + quick totals + range pulse, one card */}
+            <DashboardStats
+              allExpenses={all}
+              rangeExpenses={filtered}
+              rangeLabel={rangeLabel}
+              filters={filters}
+              onFiltersChange={setFilters}
+              onQuickRange={quickRange}
+            />
 
-            {/* 2. What did you spend on */}
+            {/* 2. Log a spend */}
+            {session && (
+              <CollapsibleCard eyebrow="Log a spend" title="What did you spend on?">
+                <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} bare />
+              </CollapsibleCard>
+            )}
+
+            {/* What did you spend on — category breakdown */}
             {profile && hasFeature(profile.features, "category_insights") && (
               <CategoryBreakdown expenses={filtered} rangeLabel={rangeLabel} />
             )}
@@ -182,29 +244,27 @@ export default function Home() {
               <FinanceCard profile={profile} allExpenses={all} onIncomeSaved={refreshProfile} />
             )}
 
-            {/* 4. Reports */}
-            {profile && (hasFeature(profile.features, "pdf_export") || hasFeature(profile.features, "csv_export")) && (
-              <CollapsibleCard
-                eyebrow="Export"
-                title="Reports"
-                subtitle="A PDF or CSV of whatever range is currently filtered above."
-              >
-                <ReportsBar
-                  expenses={filtered}
-                  rangeLabel={rangeLabel}
-                  pdfEnabled={hasFeature(profile.features, "pdf_export")}
-                  csvEnabled={hasFeature(profile.features, "csv_export")}
-                  bare
-                />
-              </CollapsibleCard>
+            {/* 4. Reports + manage entries — merged */}
+            {profile && (
+              <ReportsAndEntriesCard
+                expenses={filtered}
+                rangeLabel={rangeLabel}
+                pdfEnabled={hasFeature(profile.features, "pdf_export")}
+                csvEnabled={hasFeature(profile.features, "csv_export")}
+                onChanged={load}
+              />
             )}
 
-            <EntriesManager expenses={filtered} onChanged={load} />
-
-            {/* 5. Manage users — admin-tier accounts only, same page as everyone else */}
+            {/* 5. Manage users — admin-tier only */}
             {profile && isAdminRole(profile.role) && session && (
               <ManageUsersCard currentUserId={session.user.id} />
             )}
+
+            {/* 6. Recommendations dashboard — admin-tier only */}
+            {profile && isAdminRole(profile.role) && <RecommendationsCard />}
+
+            {/* 7. My account — everyone */}
+            {profile && <MyAccountCard profile={profile} />}
           </>
         )}
       </section>
@@ -223,7 +283,7 @@ export default function Home() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 32px;
+          margin-bottom: 24px;
         }
         .brand {
           display: flex;

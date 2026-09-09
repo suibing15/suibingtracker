@@ -19,6 +19,7 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
   const [dailyBudget, setDailyBudget] = useState(profile.daily_budget?.toString() ?? "");
   const [monthlyBudget, setMonthlyBudget] = useState(profile.monthly_budget?.toString() ?? "");
   const [newPassword, setNewPassword] = useState("");
+  const [notice, setNotice] = useState(profile.admin_notice ?? "");
   const [status, setStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({
     kind: "idle",
   });
@@ -27,6 +28,7 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
 
   async function saveProfile() {
     setStatus({ kind: "busy" });
+    const noticeChanged = notice.trim() !== (profile.admin_notice ?? "");
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -35,6 +37,11 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
         features,
         daily_budget: dailyBudget ? Number(dailyBudget) : null,
         monthly_budget: monthlyBudget ? Number(monthlyBudget) : null,
+        admin_notice: notice.trim() || null,
+        // Only bump the timestamp when the notice text actually changed, so
+        // an unrelated save (e.g. toggling a feature) doesn't re-surface an
+        // already-dismissed notice to the user.
+        ...(noticeChanged ? { admin_notice_set_at: notice.trim() ? new Date().toISOString() : null } : {}),
       })
       .eq("id", profile.id);
 
@@ -133,6 +140,17 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
             onChange={(e) => setMonthlyBudget(e.target.value.replace(/[^0-9.]/g, ""))}
             placeholder="No cap"
           />
+        </div>
+
+        <div className="section">
+          <span className="label">Notice / reminder for this user</span>
+          <textarea
+            value={notice}
+            onChange={(e) => setNotice(e.target.value)}
+            placeholder="e.g. Please log your daily spend more consistently — leave blank for no notice"
+            rows={3}
+          />
+          <p className="hint">Shows once at the top of their dashboard until they dismiss it. Clear this to remove it.</p>
         </div>
 
         <div className="section">
@@ -249,7 +267,8 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
           margin-bottom: 7px;
         }
         select,
-        input {
+        input,
+        textarea {
           background: var(--ink);
           border: 1px solid var(--line-strong);
           border-radius: var(--radius-sm);
@@ -257,9 +276,12 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
           padding: 11px 13px;
           font-size: 14px;
           width: 100%;
+          font-family: inherit;
+          resize: vertical;
         }
         input:focus,
-        select:focus {
+        select:focus,
+        textarea:focus {
           outline: none;
           border-color: var(--amber);
           box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.18);

@@ -13,13 +13,14 @@ type Props = {
   filters: Filters;
   onChange: (f: Filters) => void;
   onQuickRange: (days: number | "month" | "all") => void;
+  bare?: boolean;
 };
 
-export default function FilterBar({ filters, onChange, onQuickRange }: Props) {
+export default function FilterBar({ filters, onChange, onQuickRange, bare = false }: Props) {
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
 
   return (
-    <div className="filters">
+    <div className={`filters ${bare ? "bare" : ""}`}>
       <div className="quick">
         <button onClick={() => onQuickRange(7)}>7 days</button>
         <button onClick={() => onQuickRange(30)}>30 days</button>
@@ -74,6 +75,11 @@ export default function FilterBar({ filters, onChange, onQuickRange }: Props) {
           border: 1px solid var(--line);
           border-radius: var(--radius);
           padding: 18px;
+        }
+        .filters.bare {
+          background: none;
+          border: none;
+          padding: 0;
         }
         .quick {
           display: flex;

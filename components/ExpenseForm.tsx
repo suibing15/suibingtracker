@@ -15,9 +15,10 @@ type Props = {
   profile: Profile | null;
   allExpenses: Expense[];
   onSaved: () => void;
+  bare?: boolean;
 };
 
-export default function ExpenseForm({ userId, profile, allExpenses, onSaved }: Props) {
+export default function ExpenseForm({ userId, profile, allExpenses, onSaved, bare = false }: Props) {
   const [spentOn, setSpentOn] = useState(today());
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0].key);
@@ -89,11 +90,13 @@ export default function ExpenseForm({ userId, profile, allExpenses, onSaved }: P
   }
 
   return (
-    <div className="form-card">
-      <div className="form-head">
-        <span className="eyebrow">Log a spend</span>
-        <h2>What did you spend on?</h2>
-      </div>
+    <div className={`form-card ${bare ? "bare" : ""}`}>
+      {!bare && (
+        <div className="form-head">
+          <span className="eyebrow">Log a spend</span>
+          <h2>What did you spend on?</h2>
+        </div>
+      )}
 
       <div className="grid">
         <label className="field span-2">
@@ -184,6 +187,12 @@ export default function ExpenseForm({ userId, profile, allExpenses, onSaved }: P
           border-radius: var(--radius);
           padding: 28px;
           box-shadow: var(--shadow);
+        }
+        .form-card.bare {
+          background: none;
+          border: none;
+          box-shadow: none;
+          padding: 0;
         }
         .form-head {
           margin-bottom: 22px;

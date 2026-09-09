@@ -7,9 +7,10 @@ import { categoryByKey, formatMoney, formatDate } from "@/lib/config";
 type Props = {
   expenses: Expense[];
   onChanged: () => void;
+  bare?: boolean; // when nested inside another CollapsibleCard, skip our own toggle
 };
 
-export default function EntriesManager({ expenses, onChanged }: Props) {
+export default function EntriesManager({ expenses, onChanged, bare = false }: Props) {
   const [open, setOpen] = useState(false);
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
@@ -23,31 +24,20 @@ export default function EntriesManager({ expenses, onChanged }: Props) {
     onChanged();
   }
 
-  return (
-    <div className="entries-card">
-      <button className="disclosure" onClick={() => setOpen((v) => !v)}>
-        <span className="left">
-          <span className={`chevron ${open ? "open" : ""}`}>›</span>
-          <span className="label">Manage individual entries</span>
-          <span className="count">({expenses.length} in this range)</span>
-        </span>
-        <span className="hint">{open ? "Hide" : "Show"}</span>
-      </button>
-
-      {open && (
-        <div className="body">
-          {expenses.length === 0 ? (
-            <p className="empty">Nothing in this range yet.</p>
-          ) : (
-            <div className="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Paid with</th>
-                    <th className="right">Amount</th>
+  const body = (
+    <div className="body">
+      {expenses.length === 0 ? (
+        <p className="empty">Nothing in this range yet.</p>
+      ) : (
+        <div className="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Paid with</th>
+                <th className="right">Amount</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -87,9 +77,36 @@ export default function EntriesManager({ expenses, onChanged }: Props) {
             </div>
           )}
         </div>
-      )}
+  );
 
-      <style jsx>{`
+  if (bare) {
+    return (
+      <>
+        {body}
+        <style jsx>{entriesStyles}</style>
+      </>
+    );
+  }
+
+  return (
+    <div className="entries-card">
+      <button className="disclosure" onClick={() => setOpen((v) => !v)}>
+        <span className="left">
+          <span className={`chevron ${open ? "open" : ""}`}>›</span>
+          <span className="label">Manage individual entries</span>
+          <span className="count">({expenses.length} in this range)</span>
+        </span>
+        <span className="hint">{open ? "Hide" : "Show"}</span>
+      </button>
+
+      {open && body}
+
+      <style jsx>{entriesStyles}</style>
+    </div>
+  );
+}
+
+const entriesStyles = `
         .entries-card {
           background: linear-gradient(180deg, var(--ink-2), var(--ink));
           border: 1px solid var(--line-strong);
@@ -222,7 +239,4 @@ export default function EntriesManager({ expenses, onChanged }: Props) {
           font-size: 13px;
           padding: 6px 0 0;
         }
-      `}</style>
-    </div>
-  );
-}
+`;

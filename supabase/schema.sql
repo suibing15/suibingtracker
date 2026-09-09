@@ -47,6 +47,8 @@ create table if not exists tracker.profiles (
   daily_budget numeric(12, 2),
   monthly_budget numeric(12, 2),
   monthly_income numeric(12, 2), -- user's own setting, not admin-protected
+  admin_notice text, -- admin-set message shown to this user; admin-protected
+  admin_notice_set_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -181,7 +183,7 @@ language plpgsql
 set search_path = tracker
 as $$
 begin
-  if tracker.is_super_admin()
+  if tracker.is_admin_or_above()
      or current_user in ('service_role', 'postgres', 'supabase_admin')
   then
     return new;
@@ -192,6 +194,8 @@ begin
   new.daily_budget := old.daily_budget;
   new.monthly_budget := old.monthly_budget;
   new.email := old.email;
+  new.admin_notice := old.admin_notice;
+  new.admin_notice_set_at := old.admin_notice_set_at;
   return new;
 end;
 $$;
@@ -327,6 +331,36 @@ end;
 $$;
 
 grant execute on function tracker.admin_user_overview() to authenticated;
+
+-- ============================================================
+-- 3c. Recommendations — user feedback to the admin, with an optional
+-- 1-5 enjoyment rating. Unlike expenses/budgets, this is voluntarily
+-- submitted for the admin to read, so a direct admin-read policy is
+-- appropriate here (no privacy concern to route around with an RPC).
+-- ============================================================
+create table if not exists tracker.recommendations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  message text not null,
+  rating smallint check (rating between 1 and 5),
+  created_at timestamptz not null default now()
+);
+
+alter table tracker.recommendations enable row level security;
+
+drop policy if exists recommendations_owner_all on tracker.recommendations;
+create policy recommendations_owner_all on tracker.recommendations
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists recommendations_admin_read on tracker.recommendations;
+create policy recommendations_admin_read on tracker.recommendations
+  for select using (tracker.is_admin_or_above());
+
+drop policy if exists recommendations_admin_delete on tracker.recommendations;
+create policy recommendations_admin_delete on tracker.recommendations
+  for delete using (tracker.is_admin_or_above());
+
+create index if not exists recommendations_user_idx on tracker.recommendations (user_id, created_at desc);
 
 -- ============================================================
 -- 4. Grants — a custom schema has NO default privileges, unlike "public"
