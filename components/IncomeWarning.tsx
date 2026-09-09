@@ -86,21 +86,33 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
         </>
       )}
       {err && <p className="err">{err}</p>}
-
-      <style jsx>{incomeStyles}</style>
     </div>
   );
 
-  if (bare) return body;
+  if (bare) {
+    return (
+      <>
+        {body}
+        <style jsx>{incomeStyles}</style>
+      </>
+    );
+  }
 
   return (
     <CollapsibleCard eyebrow="Keep it in perspective" title="Income vs spend">
       {body}
+      <style jsx>{incomeStyles}</style>
     </CollapsibleCard>
   );
 }
 
 const incomeStyles = `
+  .income-body {
+    background: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+  }
   .edit-link {
     background: transparent;
     border: none;

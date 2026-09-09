@@ -3,6 +3,8 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider, noFlashThemeScript } from "@/lib/theme";
 import PwaRegister from "@/components/PwaRegister";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import GlobalFooter from "@/components/GlobalFooter";
 
 export const metadata: Metadata = {
   title: "suibingtracker — daily expenses",
@@ -43,6 +45,8 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             {children}
+            <GlobalFooter />
+            <WhatsAppButton />
             <PwaRegister />
           </AuthProvider>
         </ThemeProvider>

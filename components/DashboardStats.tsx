@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Expense, Profile } from "@/lib/supabaseClient";
-import { formatMoney } from "@/lib/config";
+import { formatMoney, categoryByKey } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
 import FilterBar, { Filters } from "./FilterBar";
 
@@ -77,6 +77,32 @@ export default function DashboardStats({
     return { spentThisMonth, income: profile.monthly_income, ratio };
   }, [allExpenses, profile.monthly_income]);
 
+  const insights = useMemo(() => {
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+
+    const thisMonthTotal = allExpenses
+      .filter((e) => e.spent_on >= thisMonthStart)
+      .reduce((s, e) => s + Number(e.amount), 0);
+    const lastMonthTotal = allExpenses
+      .filter((e) => e.spent_on >= lastMonthStart && e.spent_on <= lastMonthEnd)
+      .reduce((s, e) => s + Number(e.amount), 0);
+
+    let momChange: number | null = null;
+    if (lastMonthTotal > 0) momChange = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+
+    const byCat = new Map<string, number>();
+    for (const e of rangeExpenses) byCat.set(e.category, (byCat.get(e.category) ?? 0) + Number(e.amount));
+    const topCatEntry = [...byCat.entries()].sort((a, b) => b[1] - a[1])[0];
+    const topCategory = topCatEntry ? { ...categoryByKey(topCatEntry[0]), amount: topCatEntry[1] } : null;
+
+    const biggest = [...rangeExpenses].sort((a, b) => Number(b.amount) - Number(a.amount))[0] ?? null;
+
+    return { thisMonthTotal, lastMonthTotal, momChange, topCategory, biggest };
+  }, [allExpenses, rangeExpenses]);
+
   return (
     <CollapsibleCard eyebrow="Overview" title="Dashboard" subtitle="Filter your range, see quick totals, then the pulse.">
       <div className="filter-slot">
@@ -142,6 +168,47 @@ export default function DashboardStats({
         <div className="pulse-axis">
           <span>Daily rhythm</span>
           {stats.topDay[0] && <span className="tab-nums">Peak {formatMoney(stats.topDay[1])}</span>}
+        </div>
+      </div>
+
+      <div className="insights">
+        <div className="insight-tile">
+          <span className="i-label">Vs last month</span>
+          {insights.momChange === null ? (
+            <span className="i-value">No data last month</span>
+          ) : (
+            <span className={`i-value tab-nums ${insights.momChange > 0 ? "up" : insights.momChange < 0 ? "down" : ""}`}>
+              {insights.momChange > 0 ? "▲" : insights.momChange < 0 ? "▼" : "—"} {Math.abs(insights.momChange).toFixed(0)}%
+            </span>
+          )}
+          <span className="i-sub tab-nums">{formatMoney(insights.thisMonthTotal)} this month</span>
+        </div>
+
+        <div className="insight-tile">
+          <span className="i-label">Top category · {rangeLabel}</span>
+          {insights.topCategory ? (
+            <>
+              <span className="i-value">
+                <span className="cat-dot" style={{ background: insights.topCategory.color }} />
+                {insights.topCategory.label}
+              </span>
+              <span className="i-sub tab-nums">{formatMoney(insights.topCategory.amount)}</span>
+            </>
+          ) : (
+            <span className="i-value muted">No spending yet</span>
+          )}
+        </div>
+
+        <div className="insight-tile">
+          <span className="i-label">Biggest single expense · {rangeLabel}</span>
+          {insights.biggest ? (
+            <>
+              <span className="i-value">{insights.biggest.title}</span>
+              <span className="i-sub tab-nums">{formatMoney(insights.biggest.amount)}</span>
+            </>
+          ) : (
+            <span className="i-value muted">No spending yet</span>
+          )}
         </div>
       </div>
 
@@ -277,9 +344,70 @@ export default function DashboardStats({
           font-size: 12px;
           color: var(--text-faint);
         }
+        .insights {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-top: 22px;
+          padding-top: 22px;
+          border-top: 1px solid var(--line);
+        }
+        .insight-tile {
+          background: var(--ink);
+          border: 1px solid var(--line);
+          border-radius: var(--radius-sm);
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 0;
+        }
+        .i-label {
+          font-size: 11px;
+          color: var(--text-faint);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .i-value {
+          font-family: var(--font-display);
+          font-weight: 600;
+          font-size: 15px;
+          color: var(--text);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .i-value.muted {
+          color: var(--text-faint);
+          font-weight: 500;
+          font-size: 13px;
+        }
+        .i-value.up {
+          color: var(--coral);
+        }
+        .i-value.down {
+          color: var(--mint);
+        }
+        .i-sub {
+          font-size: 12px;
+          color: var(--text-dim);
+        }
+        .cat-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
         @media (max-width: 720px) {
           .quick-grid {
             grid-template-columns: 1fr 1fr;
+          }
+          .insights {
+            grid-template-columns: 1fr;
           }
           .total {
             font-size: 32px;

@@ -12,7 +12,8 @@ export type SectionId =
   | "reports"
   | "manage_users"
   | "recommendations"
-  | "account";
+  | "account"
+  | "guide";
 
 type NavItem = { id: SectionId; label: string; icon: string; adminOnly?: boolean };
 
@@ -25,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "manage_users", label: "Manage users", icon: "◎", adminOnly: true },
   { id: "recommendations", label: "Recommendations", icon: "✦", adminOnly: true },
   { id: "account", label: "My account", icon: "☺" },
+  { id: "guide", label: "Guide", icon: "？" },
 ];
 
 type Props = {

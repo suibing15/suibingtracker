@@ -94,6 +94,20 @@ export default function NotificationBell({ alerts, onOpen }: Props) {
           padding: 16px;
           z-index: 41;
         }
+        @media (max-width: 900px) {
+          /* Anchored to the viewport instead of the bell itself — immune to
+             any ancestor's positioning/overflow, which is what was causing
+             this to render off-screen / masked on some phones. */
+          .dropdown {
+            position: fixed;
+            top: 62px;
+            right: 12px;
+            left: 12px;
+            width: auto;
+            max-width: 340px;
+            margin-left: auto;
+          }
+        }
         .dd-title {
           font-family: var(--font-display);
           font-size: 13px;

@@ -14,6 +14,7 @@ import ReportsAndEntriesCard from "@/components/ReportsAndEntriesCard";
 import ManageUsersCard from "@/components/ManageUsersCard";
 import RecommendationsCard from "@/components/RecommendationsCard";
 import MyAccountCard from "@/components/MyAccountCard";
+import GuideCard from "@/components/GuideCard";
 import CollapsibleCard from "@/components/CollapsibleCard";
 import NoticeBanner from "@/components/NoticeBanner";
 import LockedScreen from "@/components/LockedScreen";
@@ -268,12 +269,10 @@ export default function Home() {
             {section === "recommendations" && admin && <RecommendationsCard />}
 
             {section === "account" && profile && <MyAccountCard profile={profile} />}
+
+            {section === "guide" && <GuideCard />}
           </div>
         )}
-
-        <footer className="foot">
-          <span>Personal spend, tracked clean · budgets, accounts and features are admin-managed.</span>
-        </footer>
       </main>
 
       <style jsx>{`
@@ -320,10 +319,7 @@ export default function Home() {
           text-align: center;
         }
         .foot {
-          margin-top: 40px;
-          text-align: center;
-          color: var(--text-faint);
-          font-size: 12px;
+          display: none;
         }
         @media (max-width: 900px) {
           .shell {

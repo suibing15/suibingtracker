@@ -1,49 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
-import { isConfigured } from "@/lib/supabaseClient";
-import { useAuth } from "@/lib/auth";
+import { supabase, isConfigured } from "@/lib/supabaseClient";
 import ThemeToggle from "@/components/ThemeToggle";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const { loading, session, superAdminExists, signIn } = useAuth();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "error"; msg?: string }>({
+  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({
     kind: "idle",
   });
 
-  useEffect(() => {
-    if (loading) return;
-    if (session) {
-      router.replace("/");
-    } else if (superAdminExists === false) {
-      router.replace("/setup");
-    }
-  }, [loading, session, superAdminExists, router]);
-
-  async function handleSignIn() {
-    if (!email.trim() || !password) {
-      setStatus({ kind: "error", msg: "Enter your email and password." });
+  async function handleSend() {
+    if (!email.trim()) {
+      setStatus({ kind: "error", msg: "Enter your email address." });
       return;
     }
     setStatus({ kind: "busy" });
-    const { error } = await signIn(email.trim(), password);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     if (error) {
-      setStatus({ kind: "error", msg: error });
+      setStatus({ kind: "error", msg: error.message });
       return;
     }
-    router.replace("/");
+    setStatus({
+      kind: "ok",
+      msg: "If that email has an account, a reset link is on its way — check your inbox (and spam folder).",
+    });
   }
 
   if (!isConfigured) {
     return (
       <main className="auth-wrap">
         <div className="auth-card">
-          <p>Connect Supabase (env vars) before signing in.</p>
+          <p>Connect Supabase (env vars) before requesting a reset.</p>
         </div>
         <style jsx>{authStyles}</style>
       </main>
@@ -54,9 +45,9 @@ export default function LoginPage() {
     <main className="auth-wrap">
       <div className="toggle-corner"><ThemeToggle /></div>
       <div className="auth-card">
-        <span className="mark">◈</span>
-        <h1>suibingtracker</h1>
-        <p className="hint">Sign in with the account your admin set up for you.</p>
+        <span className="eyebrow">Password reset</span>
+        <h1>Forgot your password?</h1>
+        <p className="hint">Enter the email on your account and we'll send you a link to set a new one.</p>
 
         <label className="field">
           <span>Email</span>
@@ -65,31 +56,17 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
-          />
-        </label>
-        <label className="field">
-          <div className="label-row">
-            <span>Password</span>
-            <Link href="/forgot-password" className="forgot-link">Forgot password?</Link>
-          </div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
           />
         </label>
 
-        <button className="primary-btn" onClick={handleSignIn} disabled={status.kind === "busy"}>
-          {status.kind === "busy" ? "Signing in…" : "Sign in"}
+        <button className="primary-btn" onClick={handleSend} disabled={status.kind === "busy"}>
+          {status.kind === "busy" ? "Sending…" : "Send reset link"}
         </button>
-        {status.msg && <p className={`msg ${status.kind}`}>{status.msg}</p>}
+        {status.msg && <p className={`msg ${status.kind === "error" ? "error" : "ok"}`}>{status.msg}</p>}
 
         <p className="footnote">
-          New here? <Link href="/signup">Create a free account</Link> — or ask
-          your admin to set one up for you.
+          <Link href="/login">← Back to sign in</Link>
         </p>
       </div>
       <style jsx>{authStyles}</style>
@@ -113,28 +90,31 @@ const authStyles = `
   }
   .auth-card {
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
     background: linear-gradient(180deg, var(--ink-2), var(--ink));
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
     padding: 32px;
     box-shadow: var(--shadow);
-    text-align: center;
   }
-  .mark {
-    font-size: 30px;
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
     color: var(--amber);
   }
   h1 {
     font-family: var(--font-display);
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
     margin-top: 8px;
   }
   .hint {
     color: var(--text-dim);
     font-size: 13px;
-    margin-top: 8px;
+    line-height: 1.6;
+    margin-top: 10px;
     margin-bottom: 22px;
   }
   .field {
@@ -142,25 +122,11 @@ const authStyles = `
     flex-direction: column;
     gap: 7px;
     margin-bottom: 14px;
-    text-align: left;
   }
   .field span {
     font-size: 12px;
     color: var(--text-dim);
     font-weight: 500;
-  }
-  .label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-  .forgot-link {
-    font-size: 11px;
-    color: var(--text-faint);
-    text-decoration: none;
-  }
-  .forgot-link:hover {
-    color: var(--amber);
   }
   input {
     background: var(--ink);
@@ -198,6 +164,9 @@ const authStyles = `
   }
   .msg.error {
     color: var(--coral);
+  }
+  .msg.ok {
+    color: var(--mint);
   }
   .footnote {
     margin-top: 20px;
