@@ -123,7 +123,7 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
           </button>
         </div>
       ) : income == null ? (
-        <p style={emptyStyle}>Set your monthly income to see how your spend compares — nothing is shared with anyone.</p>
+        <p style={emptyStyle}>Set your monthly income to see how your expenses compare — nothing is shared with anyone.</p>
       ) : (
         <>
           <p style={lineStyle}>
@@ -150,7 +150,7 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
   if (bare) return body;
 
   return (
-    <CollapsibleCard eyebrow="Keep it in perspective" title="Income vs spend">
+    <CollapsibleCard eyebrow="Keep it in perspective" title="Income vs Expenses">
       {body}
     </CollapsibleCard>
   );

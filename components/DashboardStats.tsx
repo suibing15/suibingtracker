@@ -155,7 +155,7 @@ export default function DashboardStats({
       {parity && (
         <div className="parity">
           <div className="parity-head">
-            <span>Income vs spend this month</span>
+            <span>Income vs expenses this month</span>
             <span className={`tab-nums ${parity.ratio >= 1 ? "over" : parity.ratio >= 0.8 ? "watch" : ""}`}>
               {formatMoney(parity.spentThisMonth)} / {formatMoney(parity.income)} ({Math.round(parity.ratio * 100)}%)
             </span>
@@ -180,7 +180,7 @@ export default function DashboardStats({
 
         <div className="pulse-bars" aria-hidden>
           {stats.days.length === 0 ? (
-            <div className="pulse-empty">No spending in this range yet.</div>
+            <div className="pulse-empty">No expenses in this range yet.</div>
           ) : (
             stats.days.map(([day, amt]) => (
               <div className="bar-wrap" key={day} title={`${day}: ${formatMoney(amt)}`}>
@@ -219,7 +219,7 @@ export default function DashboardStats({
               <span className="i-sub tab-nums">{formatMoney(insights.topCategory.amount)}</span>
             </>
           ) : (
-            <span className="i-value muted">No spending yet</span>
+            <span className="i-value muted">No expenses yet</span>
           )}
         </div>
 
@@ -231,7 +231,7 @@ export default function DashboardStats({
               <span className="i-sub tab-nums">{formatMoney(insights.biggest.amount)}</span>
             </>
           ) : (
-            <span className="i-value muted">No spending yet</span>
+            <span className="i-value muted">No expenses yet</span>
           )}
         </div>
       </div>
@@ -240,7 +240,7 @@ export default function DashboardStats({
         <div className="trend-head">
           <span className="i-label">Last 6 months</span>
           <div className="trend-legend">
-            <span className="legend-item"><span className="dot spend" /> Spend</span>
+            <span className="legend-item"><span className="dot spend" /> Expenses</span>
             <span className="legend-item"><span className="dot income" /> Income</span>
           </div>
         </div>

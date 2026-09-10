@@ -304,6 +304,13 @@ export default function RecommendationsCard() {
           line-height: 1.5;
           white-space: pre-wrap;
         }
+        @media (max-width: 480px) {
+          .chart-row {
+            grid-template-columns: 78px 1fr 46px;
+            gap: 6px;
+            font-size: 12px;
+          }
+        }
       `}</style>
     </CollapsibleCard>
   );

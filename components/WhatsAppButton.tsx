@@ -15,7 +15,6 @@ export default function WhatsAppButton() {
       rel="noopener noreferrer"
       aria-label="Message the developer on WhatsApp"
       title="Message the developer on WhatsApp"
-      onMouseEnter={() => setShowLabel(true)}
     >
       {showLabel && (
         <span className="wa-label">
@@ -35,16 +34,17 @@ export default function WhatsAppButton() {
       )}
 
       <span className="wa-btn">
-        {/* Official-style WhatsApp glyph: speech bubble + handset, matching
-            the real logo's proportions rather than a generic phone icon. */}
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Verified WhatsApp glyph — real bubble-with-tail + handset mark,
+            not a generic phone icon. */}
+        <svg viewBox="0 0 32 32" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="#25D366" />
           <path
-            d="M12.01 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.36 5.07L2 22l5.08-1.33A9.95 9.95 0 0 0 12.01 22C17.53 22 22 17.52 22 12S17.53 2 12.01 2Z"
-            fill="#25D366"
+            fill="#FFFFFF"
+            d="M16 5.333c-5.891 0-10.667 4.776-10.667 10.667 0 1.897.505 3.68 1.386 5.219L5.333 26.667l5.596-1.354a10.61 10.61 0 0 0 5.071 1.291c5.891 0 10.667-4.776 10.667-10.667S21.891 5.333 16 5.333z"
           />
           <path
-            d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.24-.46-2.37-1.46-.88-.78-1.47-1.75-1.64-2.05-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.22 3.08.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.75-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35Z"
-            fill="#fff"
+            fill="#25D366"
+            d="M21.63 18.936c-.297-.15-1.758-.868-2.031-.967-.272-.1-.47-.15-.669.149-.198.298-.767.967-.94 1.166-.173.198-.347.223-.644.074-.297-.149-1.254-.462-2.39-1.475-.883-.787-1.48-1.76-1.653-2.058-.173-.298-.018-.459.13-.607.134-.133.298-.347.446-.52.15-.174.199-.298.298-.497.1-.198.05-.372-.025-.521-.075-.149-.67-1.612-.917-2.208-.242-.578-.488-.5-.67-.51-.173-.008-.372-.01-.57-.01-.199 0-.521.075-.793.372-.273.298-1.04 1.017-1.04 2.48 0 1.462 1.065 2.874 1.213 3.073.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.713.226 1.362.194 1.874.118.572-.086 1.759-.719 2.006-1.414.248-.694.248-1.289.173-1.413-.074-.124-.273-.198-.57-.347z"
           />
         </svg>
       </span>
@@ -58,6 +58,7 @@ export default function WhatsAppButton() {
           display: flex;
           align-items: center;
           gap: 10px;
+          max-width: calc(100vw - 32px);
         }
         .wa-label {
           background: #202c33;
@@ -90,7 +91,6 @@ export default function WhatsAppButton() {
           width: 58px;
           height: 58px;
           border-radius: 50%;
-          background: #25d366;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -112,25 +112,29 @@ export default function WhatsAppButton() {
             box-shadow: 0 10px 28px -6px rgba(37, 211, 102, 0.55), 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 10px rgba(37, 211, 102, 0);
           }
         }
-        @media (max-width: 640px) {
+        /* Mobile: keep the label visible (this was hidden before and
+           shouldn't have been) — just shrink and allow it to wrap onto two
+           lines instead of forcing single-line width off-screen. */
+        @media (max-width: 480px) {
           .wa-wrap {
-            bottom: 18px;
-            right: 16px;
+            bottom: 16px;
+            right: 14px;
+            gap: 8px;
           }
           .wa-btn {
-            width: 52px;
-            height: 52px;
+            width: 50px;
+            height: 50px;
+          }
+          .wa-btn svg {
+            width: 28px;
+            height: 28px;
           }
           .wa-label {
-            font-size: 12px;
-            padding: 8px 12px;
-          }
-        }
-        @media (max-width: 420px) {
-          /* Too tight on very small phones — icon alone, label still
-             reachable via long-press/tooltip (title attribute). */
-          .wa-label {
-            display: none;
+            font-size: 11.5px;
+            padding: 7px 10px;
+            white-space: normal;
+            max-width: 130px;
+            line-height: 1.4;
           }
         }
       `}</style>

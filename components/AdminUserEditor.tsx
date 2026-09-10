@@ -162,7 +162,7 @@ export default function AdminUserEditor({ profile, currentUserId, onChanged, onC
           <textarea
             value={notice}
             onChange={(e) => setNotice(e.target.value)}
-            placeholder="e.g. Please log your daily spend more consistently — leave blank for no notice"
+            placeholder="e.g. Please log your daily expenses more consistently — leave blank for no notice"
             rows={3}
           />
           <p className="hint">Shows once at the top of their dashboard until they dismiss it. Clear this to remove it.</p>

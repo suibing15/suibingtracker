@@ -93,7 +93,7 @@ export default function ExpenseForm({ userId, profile, allExpenses, onSaved, bar
     <div className={`form-card ${bare ? "bare" : ""}`}>
       {!bare && (
         <div className="form-head">
-          <span className="eyebrow">Log a spend</span>
+          <span className="eyebrow">Log an expense</span>
           <h2>What did you spend on?</h2>
         </div>
       )}

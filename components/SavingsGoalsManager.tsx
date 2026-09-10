@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, SavingsGoal } from "@/lib/supabaseClient";
 import { formatMoney, formatDate } from "@/lib/config";
 
@@ -9,6 +9,7 @@ type Props = { userId: string };
 export default function SavingsGoalsManager({ userId }: Props) {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedOnce = useRef(false);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
@@ -22,10 +23,11 @@ export default function SavingsGoalsManager({ userId }: Props) {
   }
 
   const load = async () => {
-    setLoading(true);
+    if (!hasLoadedOnce.current) setLoading(true);
     const { data } = await supabase.from("savings_goals").select("*").order("created_at", { ascending: true });
     setGoals((data as SavingsGoal[]) ?? []);
     setLoading(false);
+    hasLoadedOnce.current = true;
   };
 
   useEffect(() => {

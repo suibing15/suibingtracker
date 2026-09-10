@@ -80,7 +80,7 @@ export default function ManageUsersCard({ currentUserId }: Props) {
     <CollapsibleCard
       eyebrow="Admin"
       title="Manage users"
-      subtitle="Individual spend is never shown here — only login activity. Block accounts, grant features, or remove them below."
+      subtitle="Individual expenses are never shown here — only login activity. Block accounts, grant features, or remove them below."
       badge={`${totals?.total_users ?? rows.length} ${(totals?.total_users ?? rows.length) === 1 ? "user" : "users"}`}
       defaultOpen={false}
     >

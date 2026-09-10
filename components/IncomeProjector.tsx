@@ -31,7 +31,11 @@ const h2Style: React.CSSProperties = {
 };
 const gridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  // auto-fit + minmax makes this stack to fewer columns as the container
+  // narrows, with no media query needed — important since inline styles
+  // can't use @media at all (a real gap this fixes vs. the fixed 3-column
+  // layout this used to have before the color-bug rewrite).
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
   gap: 12,
   marginBottom: 16,
 };
@@ -109,7 +113,7 @@ export default function IncomeProjector({ expenses, income, bare = false }: Prop
           </span>
         </div>
         <div style={statStyle}>
-          <span style={labelStyle}>Projected spend</span>
+          <span style={labelStyle}>Projected expenses</span>
           <span className="tab-nums" style={{ ...valueStyle, color: "var(--amber)" }}>
             {formatMoney(stats.projectedSpend)}
           </span>

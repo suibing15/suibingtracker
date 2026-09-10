@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, RecurringBill } from "@/lib/supabaseClient";
 import { CATEGORIES, PAYMENT_METHODS, BILL_FREQUENCY_LABELS, nextDueDate, formatMoney, formatDate } from "@/lib/config";
 
@@ -11,6 +11,7 @@ type Props = { userId: string; onLogged: () => void };
 export default function RecurringBillsManager({ userId, onLogged }: Props) {
   const [bills, setBills] = useState<RecurringBill[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedOnce = useRef(false);
   const [showAdd, setShowAdd] = useState(false);
 
   const [title, setTitle] = useState("");
@@ -27,7 +28,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
   }
 
   const load = async () => {
-    setLoading(true);
+    if (!hasLoadedOnce.current) setLoading(true);
     const { data } = await supabase
       .from("recurring_bills")
       .select("*")
@@ -35,6 +36,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
       .order("next_due_date", { ascending: true });
     setBills((data as RecurringBill[]) ?? []);
     setLoading(false);
+    hasLoadedOnce.current = true;
   };
 
   useEffect(() => {

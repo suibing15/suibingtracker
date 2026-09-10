@@ -23,9 +23,9 @@ const SECTIONS: GuideSection[] = [
     ],
   },
   {
-    title: "Logging a spend",
+    title: "Logging an expense",
     steps: [
-      { title: "Open 'Log a spend'", body: "Select it from the sidebar." },
+      { title: "Open 'Log an expense'", body: "Select it from the sidebar." },
       {
         title: "Fill in the details",
         body: "Title, amount, date, category, and how you paid. A note is optional but helpful for remembering odd purchases later.",
@@ -45,15 +45,15 @@ const SECTIONS: GuideSection[] = [
     steps: [
       {
         title: "Log what comes in",
-        body: "Open the Daily Income section and use 'Log income' the same way you log a spend — source, amount, date received.",
+        body: "Open the Daily Income section and use 'Log income' the same way you log an expense — source, amount, date received.",
       },
       {
         title: "Set your fixed monthly income (optional)",
-        body: "A separate figure from what you log — this is what you expect to earn, used only to compare against your spend and show you a percentage used.",
+        body: "A separate figure from what you log — this is what you expect to earn, used only to compare against your expenses and show you a percentage used.",
       },
       {
         title: "See the trend",
-        body: "The Dashboard shows a 6-month chart comparing your logged income against your spend, month by month, so you can see the pattern over time rather than just one month at a time.",
+        body: "The Dashboard shows a 6-month chart comparing your logged income against your expenses, month by month, so you can see the pattern over time rather than just one month at a time.",
       },
     ],
   },
@@ -74,7 +74,7 @@ const SECTIONS: GuideSection[] = [
       },
       {
         title: "Income projection",
-        body: "If you've been logging income, this section also estimates your projected income and spend for the whole month, and — most usefully — your projected net savings: what you're on track to actually have left over.",
+        body: "If you've been logging income, this section also estimates your projected income and expenses for the whole month, and — most usefully — your projected net savings: what you're on track to actually have left over.",
       },
       {
         title: "Savings goals",

@@ -20,7 +20,7 @@ type NavItem = { id: SectionId; label: string; icon: string; adminOnly?: boolean
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: "◱" },
   { id: "income", label: "Daily Income", icon: "↑" },
-  { id: "log", label: "Log a spend", icon: "＋" },
+  { id: "log", label: "Log an expense", icon: "＋" },
   { id: "finance", label: "Budgets & projections", icon: "◧" },
   { id: "reports", label: "Reports & entries", icon: "▤" },
   { id: "manage_users", label: "Manage users", icon: "◎", adminOnly: true },

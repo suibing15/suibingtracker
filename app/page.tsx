@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Expense, IncomeEntry, isConfigured } from "@/lib/supabaseClient";
 import { formatDate, isAdminRole, hasFeature } from "@/lib/config";
@@ -37,6 +37,7 @@ export default function Home() {
   const [all, setAll] = useState<Expense[]>([]);
   const [allIncome, setAllIncome] = useState<IncomeEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedOnce = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [newRecCount, setNewRecCount] = useState(0);
   const [dueBillsCount, setDueBillsCount] = useState(0);
@@ -55,7 +56,12 @@ export default function Home() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Only the very first load shows the full "Loading your dashboard…"
+    // screen. Every call after that — triggered by a save, a delete, a
+    // logged bill, etc. — refreshes the data quietly in the background so
+    // the section stays mounted and doesn't flash/reset. This is what was
+    // making every save feel like a hard page refresh.
+    if (!hasLoadedOnce.current) setLoading(true);
     const [expensesRes, incomeRes] = await Promise.all([
       supabase
         .from("expenses")
@@ -72,6 +78,7 @@ export default function Home() {
     else setAll((expensesRes.data as Expense[]) ?? []);
     if (!incomeRes.error) setAllIncome((incomeRes.data as IncomeEntry[]) ?? []);
     setLoading(false);
+    hasLoadedOnce.current = true;
   }, [session]);
 
   useEffect(() => {
@@ -175,7 +182,7 @@ export default function Home() {
     if (profile.monthly_income != null && profile.monthly_income > 0) {
       const ratio = spendMonth / profile.monthly_income;
       if (ratio >= 1) list.push("You've spent your whole month's income.");
-      else if (ratio >= 0.8) list.push("You're approaching your monthly income in spend.");
+      else if (ratio >= 0.8) list.push("You're approaching your monthly income in expenses.");
     }
     if (profile.admin_notice) {
       list.push("Your admin left you a note at the top of the page.");
@@ -260,7 +267,7 @@ export default function Home() {
             )}
 
             {section === "log" && session && (
-              <CollapsibleCard eyebrow="Log a spend" title="What did you spend on?">
+              <CollapsibleCard eyebrow="Log an expense" title="What did you spend on?">
                 <ExpenseForm userId={session.user.id} profile={profile} allExpenses={all} onSaved={load} bare />
                 {profile && hasFeature(profile.features, "recurring_bills") && (
                   <div className="log-section-divider">
