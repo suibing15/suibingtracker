@@ -129,13 +129,14 @@ export const FEATURE_DEFS: { key: FeatureKey; label: string; description: string
   },
 ];
 
-// New accounts get every feature on by default; the admin can turn any off
-// per account afterwards.
+// New accounts get every feature on by default, EXCEPT budgets and the
+// expense projector — those start off and the admin turns them on per
+// account upon request, rather than every new user seeing them unasked.
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
-  budgets: true,
+  budgets: false,
   pdf_export: true,
   csv_export: true,
-  expense_projector: true,
+  expense_projector: false,
   income_warning: true,
   recurring_bills: true,
   savings_goals: true,

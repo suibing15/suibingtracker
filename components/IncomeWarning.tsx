@@ -61,6 +61,7 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
   const [value, setValue] = useState(profile.monthly_income?.toString() ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
 
   const spendThisMonth = useMemo(() => {
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -87,6 +88,8 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
       return;
     }
     setEditing(false);
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 2500);
     onSaved();
   }
 
@@ -103,6 +106,7 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
       {!editing && income != null && (
         <button style={editLinkStyle} onClick={() => setEditing(true)}>Edit your income</button>
       )}
+      {savedFlash && <p style={{ color: "var(--mint)", fontSize: 12, marginBottom: 10 }}>✓ Saved.</p>}
 
       {editing ? (
         <div style={editRowStyle}>

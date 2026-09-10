@@ -45,10 +45,10 @@ const SECTIONS: GuideSection[] = [
     steps: [
       {
         title: "Log what comes in",
-        body: "Open the Income section and use 'Log income' the same way you log a spend — source, amount, date received.",
+        body: "Open the Daily Income section and use 'Log income' the same way you log a spend — source, amount, date received.",
       },
       {
-        title: "Set your expected monthly income (optional)",
+        title: "Set your fixed monthly income (optional)",
         body: "A separate figure from what you log — this is what you expect to earn, used only to compare against your spend and show you a percentage used.",
       },
       {

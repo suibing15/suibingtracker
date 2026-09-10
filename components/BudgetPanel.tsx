@@ -53,7 +53,7 @@ export default function BudgetPanel({ profile, expenses, bare = false, onProfile
   const [category, setCategory] = useState(CATEGORIES[0].key);
   const [limit, setLimit] = useState("");
   const [period, setPeriod] = useState<"daily" | "monthly">("monthly");
-  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "error"; msg?: string }>({
+  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({
     kind: "idle",
   });
 
@@ -181,13 +181,20 @@ export default function BudgetPanel({ profile, expenses, bare = false, onProfile
       return;
     }
     setLimit("");
-    setStatus({ kind: "idle" });
+    setStatus({ kind: "ok", msg: "Category budget saved." });
     loadBudgets();
+    setTimeout(() => setStatus({ kind: "idle" }), 2500);
   }
 
   async function removeBudget(id: string) {
-    await supabase.from("budgets").delete().eq("id", id);
+    const { error } = await supabase.from("budgets").delete().eq("id", id);
+    if (error) {
+      setStatus({ kind: "error", msg: "Could not remove that budget: " + error.message });
+      return;
+    }
+    setStatus({ kind: "ok", msg: "Category budget removed." });
     loadBudgets();
+    setTimeout(() => setStatus({ kind: "idle" }), 2500);
   }
 
   const categorySpend = (cat: string, period: "daily" | "monthly") => {
@@ -378,7 +385,7 @@ export default function BudgetPanel({ profile, expenses, bare = false, onProfile
           Add
         </button>
       </div>
-      {status.msg && <p className="msg error">{status.msg}</p>}
+      {status.msg && <p className={`msg ${status.kind === "error" ? "error" : "ok"}`}>{status.msg}</p>}
 
       <style jsx>{`
         .budget-card {
@@ -609,6 +616,11 @@ export default function BudgetPanel({ profile, expenses, bare = false, onProfile
         }
         .msg.error {
           color: var(--coral);
+          font-size: 12px;
+          margin-top: 10px;
+        }
+        .msg.ok {
+          color: var(--mint);
           font-size: 12px;
           margin-top: 10px;
         }

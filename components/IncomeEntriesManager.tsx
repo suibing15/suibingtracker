@@ -12,15 +12,22 @@ type Props = {
 
 export default function IncomeEntriesManager({ entries, onChanged, bare = false }: Props) {
   const [open, setOpen] = useState(false);
+  const [flash, setFlash] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
   const total = entries.reduce((s, e) => s + Number(e.amount), 0);
+
+  function showFlash(kind: "ok" | "error", msg: string) {
+    setFlash({ kind, msg });
+    setTimeout(() => setFlash(null), 2500);
+  }
 
   async function remove(id: string) {
     if (!confirm("Delete this income entry? This cannot be undone.")) return;
     const { error } = await supabase.from("income_entries").delete().eq("id", id);
     if (error) {
-      alert("Could not delete: " + error.message);
+      showFlash("error", "Could not delete: " + error.message);
       return;
     }
+    showFlash("ok", "Entry deleted.");
     onChanged();
   }
 
@@ -70,6 +77,7 @@ export default function IncomeEntriesManager({ entries, onChanged, bare = false 
   if (bare) {
     return (
       <>
+        {flash && <p className={flash.kind === "error" ? "flash-err" : "flash-ok"}>{flash.msg}</p>}
         {body}
         <style jsx>{entriesStyles}</style>
       </>
@@ -87,6 +95,9 @@ export default function IncomeEntriesManager({ entries, onChanged, bare = false 
         <span className="hint">{open ? "Hide" : "Show"}</span>
       </button>
 
+      {flash && (
+        <p className={`in-card ${flash.kind === "error" ? "flash-err" : "flash-ok"}`}>{flash.msg}</p>
+      )}
       {open && body}
 
       <style jsx>{entriesStyles}</style>
@@ -95,6 +106,20 @@ export default function IncomeEntriesManager({ entries, onChanged, bare = false 
 }
 
 const entriesStyles = `
+  .flash-ok {
+    color: var(--mint);
+    font-size: 12px;
+    padding: 10px 18px 0;
+  }
+  .flash-err {
+    color: var(--coral);
+    font-size: 12px;
+    padding: 10px 18px 0;
+  }
+  .in-card {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
   .entries-card {
     background: var(--ink);
     border: 1px solid var(--line-strong);

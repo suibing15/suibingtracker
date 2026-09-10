@@ -12,15 +12,22 @@ type Props = {
 
 export default function EntriesManager({ expenses, onChanged, bare = false }: Props) {
   const [open, setOpen] = useState(false);
+  const [flash, setFlash] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+
+  function showFlash(kind: "ok" | "error", msg: string) {
+    setFlash({ kind, msg });
+    setTimeout(() => setFlash(null), 2500);
+  }
 
   async function remove(id: string) {
     if (!confirm("Delete this expense? This cannot be undone.")) return;
     const { error } = await supabase.from("expenses").delete().eq("id", id);
     if (error) {
-      alert("Could not delete: " + error.message);
+      showFlash("error", "Could not delete: " + error.message);
       return;
     }
+    showFlash("ok", "Entry deleted.");
     onChanged();
   }
 
@@ -82,6 +89,7 @@ export default function EntriesManager({ expenses, onChanged, bare = false }: Pr
   if (bare) {
     return (
       <>
+        {flash && <p className={flash.kind === "error" ? "flash-err" : "flash-ok"}>{flash.msg}</p>}
         {body}
         <style jsx>{entriesStyles}</style>
       </>
@@ -99,6 +107,9 @@ export default function EntriesManager({ expenses, onChanged, bare = false }: Pr
         <span className="hint">{open ? "Hide" : "Show"}</span>
       </button>
 
+      {flash && (
+        <p className={`in-card ${flash.kind === "error" ? "flash-err" : "flash-ok"}`}>{flash.msg}</p>
+      )}
       {open && body}
 
       <style jsx>{entriesStyles}</style>
@@ -107,6 +118,20 @@ export default function EntriesManager({ expenses, onChanged, bare = false }: Pr
 }
 
 const entriesStyles = `
+        .flash-ok {
+          color: var(--mint);
+          font-size: 12px;
+          padding: 10px 18px 0;
+        }
+        .flash-err {
+          color: var(--coral);
+          font-size: 12px;
+          padding: 10px 18px 0;
+        }
+        .in-card {
+          padding-left: 18px;
+          padding-right: 18px;
+        }
         .entries-card {
           background: linear-gradient(180deg, var(--ink-2), var(--ink));
           border: 1px solid var(--line-strong);

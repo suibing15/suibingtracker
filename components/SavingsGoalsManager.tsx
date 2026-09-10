@@ -13,8 +13,13 @@ export default function SavingsGoalsManager({ userId }: Props) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [targetDate, setTargetDate] = useState("");
-  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "error"; msg?: string }>({ kind: "idle" });
+  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({ kind: "idle" });
   const [contribInputs, setContribInputs] = useState<Record<string, string>>({});
+
+  function flash(kind: "ok" | "error", msg: string) {
+    setStatus({ kind, msg });
+    setTimeout(() => setStatus({ kind: "idle" }), 2500);
+  }
 
   const load = async () => {
     setLoading(true);
@@ -53,7 +58,7 @@ export default function SavingsGoalsManager({ userId }: Props) {
     setTarget("");
     setTargetDate("");
     setShowAdd(false);
-    setStatus({ kind: "idle" });
+    flash("ok", "Goal created.");
     load();
   }
 
@@ -66,16 +71,22 @@ export default function SavingsGoalsManager({ userId }: Props) {
       .update({ current_amount: Number(goal.current_amount) + num })
       .eq("id", goal.id);
     if (error) {
-      alert("Could not add contribution: " + error.message);
+      flash("error", "Could not add contribution: " + error.message);
       return;
     }
     setContribInputs((prev) => ({ ...prev, [goal.id]: "" }));
+    flash("ok", `Added ${formatMoney(num)} to ${goal.name}.`);
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this savings goal? This cannot be undone.")) return;
-    await supabase.from("savings_goals").delete().eq("id", id);
+    const { error } = await supabase.from("savings_goals").delete().eq("id", id);
+    if (error) {
+      flash("error", "Could not delete: " + error.message);
+      return;
+    }
+    flash("ok", "Goal deleted.");
     load();
   }
 
@@ -87,6 +98,8 @@ export default function SavingsGoalsManager({ userId }: Props) {
           {showAdd ? "Cancel" : "+ New goal"}
         </button>
       </div>
+
+      {status.msg && <p className={status.kind === "error" ? "err" : "ok"}>{status.msg}</p>}
 
       {showAdd && (
         <div className="add-form">
@@ -113,7 +126,6 @@ export default function SavingsGoalsManager({ userId }: Props) {
           <button className="save-btn" onClick={addGoal} disabled={status.kind === "busy"}>
             {status.kind === "busy" ? "Saving…" : "Create goal"}
           </button>
-          {status.msg && <p className="err">{status.msg}</p>}
         </div>
       )}
 
@@ -237,6 +249,12 @@ export default function SavingsGoalsManager({ userId }: Props) {
           color: var(--coral);
           font-size: 12px;
           margin-top: 8px;
+        }
+        .ok {
+          color: var(--mint);
+          font-size: 12px;
+          margin-top: 8px;
+          margin-bottom: 12px;
         }
         .empty {
           color: var(--text-faint);

@@ -19,7 +19,12 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
   const [method, setMethod] = useState(PAYMENT_METHODS[0]);
   const [frequency, setFrequency] = useState<"weekly" | "monthly" | "yearly">("monthly");
   const [dueDate, setDueDate] = useState(today());
-  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "error"; msg?: string }>({ kind: "idle" });
+  const [status, setStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; msg?: string }>({ kind: "idle" });
+
+  function flash(kind: "ok" | "error", msg: string) {
+    setStatus({ kind, msg });
+    setTimeout(() => setStatus({ kind: "idle" }), 2500);
+  }
 
   const load = async () => {
     setLoading(true);
@@ -64,7 +69,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
     setTitle("");
     setAmount("");
     setShowAdd(false);
-    setStatus({ kind: "idle" });
+    flash("ok", "Bill saved.");
     load();
   }
 
@@ -79,7 +84,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
       note: "Logged from recurring bill",
     });
     if (insertErr) {
-      alert("Could not log: " + insertErr.message);
+      flash("error", "Could not log: " + insertErr.message);
       return;
     }
     const { error: updateErr } = await supabase
@@ -87,7 +92,9 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
       .update({ next_due_date: nextDueDate(bill.next_due_date, bill.frequency) })
       .eq("id", bill.id);
     if (updateErr) {
-      alert("Logged, but could not advance the due date: " + updateErr.message);
+      flash("error", "Logged, but could not advance the due date: " + updateErr.message);
+    } else {
+      flash("ok", `${bill.title} logged as an expense.`);
     }
     load();
     onLogged();
@@ -95,7 +102,12 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
 
   async function remove(id: string) {
     if (!confirm("Remove this recurring bill? This won't delete any expenses already logged from it.")) return;
-    await supabase.from("recurring_bills").delete().eq("id", id);
+    const { error } = await supabase.from("recurring_bills").delete().eq("id", id);
+    if (error) {
+      flash("error", "Could not remove: " + error.message);
+      return;
+    }
+    flash("ok", "Bill removed.");
     load();
   }
 
@@ -107,6 +119,8 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
           {showAdd ? "Cancel" : "+ Add bill"}
         </button>
       </div>
+
+      {status.msg && <p className={status.kind === "error" ? "err" : "ok"}>{status.msg}</p>}
 
       {showAdd && (
         <div className="add-form">
@@ -157,7 +171,6 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
           <button className="save-btn" onClick={addBill} disabled={status.kind === "busy"}>
             {status.kind === "busy" ? "Saving…" : "Save bill"}
           </button>
-          {status.msg && <p className="err">{status.msg}</p>}
         </div>
       )}
 
@@ -267,6 +280,12 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
           color: var(--coral);
           font-size: 12px;
           margin-top: 8px;
+        }
+        .ok {
+          color: var(--mint);
+          font-size: 12px;
+          margin-top: 8px;
+          margin-bottom: 12px;
         }
         .empty {
           color: var(--text-faint);
