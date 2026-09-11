@@ -18,11 +18,39 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     // The reset link redirects here with a recovery token in the URL;
-    // supabase-js exchanges it for a session automatically on load.
+    // supabase-js exchanges it for a session automatically on load. That
+    // exchange can land slightly after this first check, though, so also
+    // listen for the auth event rather than relying on a single one-shot
+    // getSession() call — otherwise a slow exchange could show "invalid
+    // link" even though the session was about to become valid.
+    let settled = false;
+
     supabase.auth.getSession().then(({ data }) => {
-      setHasRecoverySession(Boolean(data.session));
+      if (data.session) {
+        settled = true;
+        setHasRecoverySession(true);
+      }
       setReady(true);
     });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        settled = true;
+        setHasRecoverySession(true);
+        setReady(true);
+      }
+    });
+
+    // Give the exchange a few seconds before settling on "invalid/expired"
+    // if nothing has come through yet.
+    const timeout = setTimeout(() => {
+      if (!settled) setReady(true);
+    }, 4000);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   async function handleReset() {

@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, isConfigured, Profile } from "./supabaseClient";
 
@@ -26,6 +27,7 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -59,7 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      // Supabase fires this specific event when the session was just
+      // established from a password-recovery link — regardless of which
+      // page that link actually landed on. Without this check, the app was
+      // treating a recovery session exactly like a normal login and
+      // dropping the person straight into the dashboard, never showing
+      // them the "set a new password" form at all. This catches it no
+      // matter where the link's redirect ends up.
+      if (event === "PASSWORD_RECOVERY") {
+        router.replace("/reset-password");
+      }
       setSession(newSession);
       if (newSession) {
         await loadProfile(newSession.user.id);
