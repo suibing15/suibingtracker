@@ -4,6 +4,7 @@ import { Expense } from "@/lib/supabaseClient";
 import CollapsibleCard from "./CollapsibleCard";
 import ReportsBar from "./ReportsBar";
 import EntriesManager from "./EntriesManager";
+import SavingsHistoryManager from "./SavingsHistoryManager";
 
 type Props = {
   expenses: Expense[];
@@ -20,7 +21,7 @@ export default function ReportsAndEntriesCard({ expenses, rangeLabel, pdfEnabled
     <CollapsibleCard
       eyebrow="Your data"
       title="Reports & entries"
-      subtitle="Export this range, or fix a mistake in an individual entry."
+      subtitle="Export this range, fix a mistake in an individual entry, or check your savings history."
       badge={`${expenses.length} in range`}
       defaultOpen={false}
     >
@@ -29,8 +30,11 @@ export default function ReportsAndEntriesCard({ expenses, rangeLabel, pdfEnabled
           <ReportsBar expenses={expenses} rangeLabel={rangeLabel} pdfEnabled={pdfEnabled} csvEnabled={csvEnabled} bare />
         </div>
       )}
-      <div className={showReports ? "section" : ""}>
+      <div className="section">
         <EntriesManager expenses={expenses} onChanged={onChanged} bare />
+      </div>
+      <div className="section-last">
+        <SavingsHistoryManager />
       </div>
 
       <style jsx>{`
@@ -38,6 +42,9 @@ export default function ReportsAndEntriesCard({ expenses, rangeLabel, pdfEnabled
           padding-bottom: 22px;
           margin-bottom: 22px;
           border-bottom: 1px solid var(--line);
+        }
+        .section-last {
+          margin-top: 4px;
         }
       `}</style>
     </CollapsibleCard>

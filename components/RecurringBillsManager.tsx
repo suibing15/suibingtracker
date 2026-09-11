@@ -13,6 +13,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
   const [loading, setLoading] = useState(true);
   const hasLoadedOnce = useRef(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -44,7 +45,29 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function addBill() {
+  function resetForm() {
+    setTitle("");
+    setAmount("");
+    setCategory(CATEGORIES[0].key);
+    setMethod(PAYMENT_METHODS[0]);
+    setFrequency("monthly");
+    setDueDate(today());
+    setEditingId(null);
+    setShowAdd(false);
+  }
+
+  function startEdit(bill: RecurringBill) {
+    setEditingId(bill.id);
+    setTitle(bill.title);
+    setAmount(String(bill.amount));
+    setCategory(bill.category);
+    setMethod(bill.payment_method);
+    setFrequency(bill.frequency);
+    setDueDate(bill.next_due_date);
+    setShowAdd(true);
+  }
+
+  async function saveBill() {
     if (!title.trim()) {
       setStatus({ kind: "error", msg: "Give this bill a name." });
       return;
@@ -55,23 +78,26 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
       return;
     }
     setStatus({ kind: "busy" });
-    const { error } = await supabase.from("recurring_bills").insert({
-      user_id: userId,
+    const payload = {
       title: title.trim(),
       amount: num,
       category,
       payment_method: method,
       frequency,
       next_due_date: dueDate,
-    });
+    };
+
+    const { error } = editingId
+      ? await supabase.from("recurring_bills").update(payload).eq("id", editingId)
+      : await supabase.from("recurring_bills").insert({ user_id: userId, ...payload });
+
     if (error) {
       setStatus({ kind: "error", msg: error.message });
       return;
     }
-    setTitle("");
-    setAmount("");
-    setShowAdd(false);
-    flash("ok", "Bill saved.");
+    const wasEditing = Boolean(editingId);
+    resetForm();
+    flash("ok", wasEditing ? "Bill updated." : "Bill saved.");
     load();
   }
 
@@ -109,6 +135,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
       flash("error", "Could not remove: " + error.message);
       return;
     }
+    if (editingId === id) resetForm();
     flash("ok", "Bill removed.");
     load();
   }
@@ -117,7 +144,13 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
     <div className="bills">
       <div className="head">
         <h3>Recurring bills</h3>
-        <button className="add-btn" onClick={() => setShowAdd((v) => !v)}>
+        <button
+          className="add-btn"
+          onClick={() => {
+            if (showAdd) resetForm();
+            else setShowAdd(true);
+          }}
+        >
           {showAdd ? "Cancel" : "+ Add bill"}
         </button>
       </div>
@@ -126,6 +159,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
 
       {showAdd && (
         <div className="add-form">
+          {editingId && <p className="editing-tag">Editing existing bill</p>}
           <div className="grid">
             <label className="field span-2">
               <span>Title</span>
@@ -170,8 +204,8 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </label>
           </div>
-          <button className="save-btn" onClick={addBill} disabled={status.kind === "busy"}>
-            {status.kind === "busy" ? "Saving…" : "Save bill"}
+          <button className="save-btn" onClick={saveBill} disabled={status.kind === "busy"}>
+            {status.kind === "busy" ? "Saving…" : editingId ? "Save changes" : "Save bill"}
           </button>
         </div>
       )}
@@ -196,6 +230,7 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
                 <span className="bill-amount tab-nums">{formatMoney(b.amount)}</span>
                 <div className="bill-actions">
                   <button className="log-btn" onClick={() => logAndAdvance(b)}>Log it</button>
+                  <button className="edit-btn" onClick={() => startEdit(b)} aria-label="Edit">✎</button>
                   <button className="del" onClick={() => remove(b.id)} aria-label="Remove">✕</button>
                 </div>
               </div>
@@ -352,6 +387,26 @@ export default function RecurringBillsManager({ userId, onLogged }: Props) {
         .log-btn:hover {
           background: var(--amber);
           color: #201603;
+        }
+        .edit-btn {
+          background: transparent;
+          border: 1px solid var(--line-strong);
+          color: var(--text-dim);
+          border-radius: var(--radius-sm);
+          width: 28px;
+          height: 28px;
+          font-size: 13px;
+          flex-shrink: 0;
+        }
+        .edit-btn:hover {
+          border-color: var(--amber);
+          color: var(--amber);
+        }
+        .editing-tag {
+          color: var(--amber);
+          font-size: 11px;
+          font-weight: 600;
+          margin-bottom: 10px;
         }
         .del {
           background: transparent;

@@ -13,9 +13,10 @@ type Props = {
   allExpenses: Expense[];
   allIncome: IncomeEntry[];
   onProfileChanged: () => void;
+  onDataChanged: () => void;
 };
 
-export default function FinanceCard({ profile, allExpenses, allIncome, onProfileChanged }: Props) {
+export default function FinanceCard({ profile, allExpenses, allIncome, onProfileChanged, onDataChanged }: Props) {
   const showBudgets = hasFeature(profile.features, "budgets");
   const showProjector = hasFeature(profile.features, "expense_projector");
   const showIncomeProjector = hasFeature(profile.features, "income_warning");
@@ -47,7 +48,7 @@ export default function FinanceCard({ profile, allExpenses, allIncome, onProfile
         )}
         {showGoals && (
           <div className="section">
-            <SavingsGoalsManager userId={profile.id} />
+            <SavingsGoalsManager userId={profile.id} onContributed={onDataChanged} />
           </div>
         )}
       </div>

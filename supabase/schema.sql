@@ -511,6 +511,30 @@ create policy savings_goals_owner_all on tracker.savings_goals
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================
+-- 3g-2. Savings contributions — a permanent ledger of every top-up, kept
+-- separate from savings_goals.current_amount so the history survives even
+-- if the goal itself is later deleted (goal_name is a snapshot, and
+-- goal_id is nullable / ON DELETE SET NULL rather than CASCADE).
+-- ============================================================
+create table if not exists tracker.savings_contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  goal_id uuid references tracker.savings_goals(id) on delete set null,
+  goal_name text not null,
+  amount numeric(12, 2) not null check (amount > 0),
+  contributed_on date not null default current_date,
+  created_at timestamptz not null default now()
+);
+
+alter table tracker.savings_contributions enable row level security;
+
+drop policy if exists savings_contributions_owner_all on tracker.savings_contributions;
+create policy savings_contributions_owner_all on tracker.savings_contributions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists savings_contributions_user_date_idx on tracker.savings_contributions (user_id, contributed_on desc);
+
+-- ============================================================
 -- 3h. Push subscriptions — browser push endpoints. RLS lets each user
 -- manage their own directly from the client; the cron/notify routes read
 -- across everyone via the service role (which bypasses RLS), never via a

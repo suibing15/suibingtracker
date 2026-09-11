@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Expense, IncomeEntry, Profile } from "@/lib/supabaseClient";
-import { formatMoney, categoryByKey } from "@/lib/config";
+import { Expense, IncomeEntry, RecurringBill, SavingsGoal, Profile } from "@/lib/supabaseClient";
+import { formatMoney, categoryByKey, formatDate } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
 import FilterBar, { Filters } from "./FilterBar";
 
@@ -10,6 +10,8 @@ type Props = {
   profile: Profile;
   allExpenses: Expense[]; // for fixed quick-range tiles, independent of the active filter
   allIncome: IncomeEntry[];
+  bills: RecurringBill[];
+  goals: SavingsGoal[];
   rangeExpenses: Expense[]; // whatever the filter bar currently selects
   rangeLabel: string;
   filters: Filters;
@@ -23,10 +25,16 @@ function isoDaysAgo(n: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function DashboardStats({
   profile,
   allExpenses,
   allIncome,
+  bills,
+  goals,
   rangeExpenses,
   rangeLabel,
   filters,
@@ -265,6 +273,43 @@ export default function DashboardStats({
         </div>
       </div>
 
+      {(bills.length > 0 || goals.length > 0) && (
+        <div className="glance">
+          <span className="i-label">Bills & goals at a glance</span>
+          <div className="glance-grid">
+            {bills.slice(0, 3).map((b) => {
+              const due = b.next_due_date <= todayStr();
+              return (
+                <div className="glance-tile" key={b.id}>
+                  <span className="glance-icon">📅</span>
+                  <div className="glance-body">
+                    <span className="glance-title">{b.title}</span>
+                    <span className={`glance-sub ${due ? "due" : ""}`}>
+                      {due ? "Due now" : `Due ${formatDate(b.next_due_date)}`} · {formatMoney(b.amount)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            {goals.slice(0, 3).map((g) => {
+              const pct = Math.min(100, (Number(g.current_amount) / Number(g.target_amount)) * 100);
+              return (
+                <div className="glance-tile" key={g.id}>
+                  <span className="glance-icon">🎯</span>
+                  <div className="glance-body">
+                    <span className="glance-title">{g.name}</span>
+                    <div className="glance-track">
+                      <div className="glance-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="glance-sub">{Math.round(pct)}% of {formatMoney(g.target_amount)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         .filter-slot {
           padding-bottom: 22px;
@@ -454,6 +499,65 @@ export default function DashboardStats({
           height: 8px;
           border-radius: 50%;
           flex-shrink: 0;
+        }
+        .glance {
+          margin-top: 22px;
+          padding-top: 22px;
+          border-top: 1px solid var(--line);
+        }
+        .glance-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 10px;
+          margin-top: 12px;
+        }
+        .glance-tile {
+          background: var(--ink);
+          border: 1px solid var(--line);
+          border-radius: var(--radius-sm);
+          padding: 12px 14px;
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+        }
+        .glance-icon {
+          font-size: 16px;
+          flex-shrink: 0;
+        }
+        .glance-body {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+          flex: 1;
+        }
+        .glance-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .glance-sub {
+          font-size: 11px;
+          color: var(--text-faint);
+        }
+        .glance-sub.due {
+          color: var(--amber);
+          font-weight: 600;
+        }
+        .glance-track {
+          height: 5px;
+          background: var(--ink-3);
+          border-radius: 4px;
+          overflow: hidden;
+          margin: 2px 0;
+        }
+        .glance-fill {
+          height: 100%;
+          background: var(--mint);
+          border-radius: 4px;
         }
         .trend {
           margin-top: 22px;

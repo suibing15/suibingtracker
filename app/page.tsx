@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, Expense, IncomeEntry, isConfigured } from "@/lib/supabaseClient";
+import { supabase, Expense, IncomeEntry, RecurringBill, SavingsGoal, isConfigured } from "@/lib/supabaseClient";
 import { formatDate, isAdminRole, hasFeature } from "@/lib/config";
 import { useAuth } from "@/lib/auth";
 import ExpenseForm from "@/components/ExpenseForm";
@@ -20,6 +20,7 @@ import CollapsibleCard from "@/components/CollapsibleCard";
 import NoticeBanner from "@/components/NoticeBanner";
 import LockedScreen from "@/components/LockedScreen";
 import Sidebar, { SectionId } from "@/components/Sidebar";
+import FinancialStatusToast from "@/components/FinancialStatusToast";
 
 const isoDaysAgo = (n: number) => {
   const d = new Date();
@@ -36,6 +37,8 @@ export default function Home() {
   const { loading: authLoading, session, profile, superAdminExists, signOut, refreshProfile } = useAuth();
   const [all, setAll] = useState<Expense[]>([]);
   const [allIncome, setAllIncome] = useState<IncomeEntry[]>([]);
+  const [dashboardBills, setDashboardBills] = useState<RecurringBill[]>([]);
+  const [dashboardGoals, setDashboardGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const hasLoadedOnce = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export default function Home() {
     // the section stays mounted and doesn't flash/reset. This is what was
     // making every save feel like a hard page refresh.
     if (!hasLoadedOnce.current) setLoading(true);
-    const [expensesRes, incomeRes] = await Promise.all([
+    const [expensesRes, incomeRes, billsRes, goalsRes] = await Promise.all([
       supabase
         .from("expenses")
         .select("*")
@@ -73,10 +76,18 @@ export default function Home() {
         .select("*")
         .order("received_on", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("recurring_bills")
+        .select("*")
+        .eq("is_active", true)
+        .order("next_due_date", { ascending: true }),
+      supabase.from("savings_goals").select("*").order("created_at", { ascending: true }),
     ]);
     if (expensesRes.error) setError(expensesRes.error.message);
     else setAll((expensesRes.data as Expense[]) ?? []);
     if (!incomeRes.error) setAllIncome((incomeRes.data as IncomeEntry[]) ?? []);
+    if (!billsRes.error) setDashboardBills((billsRes.data as RecurringBill[]) ?? []);
+    if (!goalsRes.error) setDashboardGoals((goalsRes.data as SavingsGoal[]) ?? []);
     setLoading(false);
     hasLoadedOnce.current = true;
   }, [session]);
@@ -210,6 +221,10 @@ export default function Home() {
 
   return (
     <div className="shell">
+      {profile && (all.length > 0 || allIncome.length > 0) && (
+        <FinancialStatusToast profile={profile} allExpenses={all} allIncome={allIncome} />
+      )}
+
       {profile && session && (
         <Sidebar
           active={section}
@@ -247,6 +262,8 @@ export default function Home() {
                 profile={profile}
                 allExpenses={all}
                 allIncome={allIncome}
+                bills={dashboardBills}
+                goals={dashboardGoals}
                 rangeExpenses={filtered}
                 rangeLabel={rangeLabel}
                 filters={filters}
@@ -278,7 +295,13 @@ export default function Home() {
             )}
 
             {section === "finance" && profile && (
-              <FinanceCard profile={profile} allExpenses={all} allIncome={allIncome} onProfileChanged={refreshProfile} />
+              <FinanceCard
+                profile={profile}
+                allExpenses={all}
+                allIncome={allIncome}
+                onProfileChanged={refreshProfile}
+                onDataChanged={load}
+              />
             )}
 
             {section === "reports" && profile && (

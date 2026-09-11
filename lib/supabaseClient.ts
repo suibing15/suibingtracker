@@ -75,6 +75,16 @@ export type SavingsGoal = {
   updated_at: string;
 };
 
+export type SavingsContribution = {
+  id: string;
+  user_id: string;
+  goal_id: string | null;
+  goal_name: string;
+  amount: number;
+  contributed_on: string;
+  created_at: string;
+};
+
 export type PushSubscriptionRow = {
   id: string;
   user_id: string;

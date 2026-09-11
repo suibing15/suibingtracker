@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { supabase, SavingsGoal } from "@/lib/supabaseClient";
 import { formatMoney, formatDate } from "@/lib/config";
 
-type Props = { userId: string };
+type Props = { userId: string; onContributed?: () => void };
 
-export default function SavingsGoalsManager({ userId }: Props) {
+export default function SavingsGoalsManager({ userId, onContributed }: Props) {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const hasLoadedOnce = useRef(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [targetDate, setTargetDate] = useState("");
@@ -35,7 +36,23 @@ export default function SavingsGoalsManager({ userId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function addGoal() {
+  function resetForm() {
+    setName("");
+    setTarget("");
+    setTargetDate("");
+    setEditingId(null);
+    setShowAdd(false);
+  }
+
+  function startEdit(goal: SavingsGoal) {
+    setEditingId(goal.id);
+    setName(goal.name);
+    setTarget(String(goal.target_amount));
+    setTargetDate(goal.target_date ?? "");
+    setShowAdd(true);
+  }
+
+  async function saveGoal() {
     if (!name.trim()) {
       setStatus({ kind: "error", msg: "Give this goal a name." });
       return;
@@ -46,48 +63,75 @@ export default function SavingsGoalsManager({ userId }: Props) {
       return;
     }
     setStatus({ kind: "busy" });
-    const { error } = await supabase.from("savings_goals").insert({
-      user_id: userId,
-      name: name.trim(),
-      target_amount: num,
-      target_date: targetDate || null,
-    });
+    const payload = { name: name.trim(), target_amount: num, target_date: targetDate || null };
+
+    const { error } = editingId
+      ? await supabase.from("savings_goals").update(payload).eq("id", editingId)
+      : await supabase.from("savings_goals").insert({ user_id: userId, ...payload });
+
     if (error) {
       setStatus({ kind: "error", msg: error.message });
       return;
     }
-    setName("");
-    setTarget("");
-    setTargetDate("");
-    setShowAdd(false);
-    flash("ok", "Goal created.");
+    const wasEditing = Boolean(editingId);
+    resetForm();
+    flash("ok", wasEditing ? "Goal updated." : "Goal created.");
     load();
   }
 
+  // Adding a contribution does three things, all treated as one action:
+  // 1. bumps the goal's running current_amount (progress bar),
+  // 2. writes a permanent line to the savings_contributions ledger, so the
+  //    history survives even if the goal is later deleted (see Reports &
+  //    Entries), and
+  // 3. logs it as income too, so money you've set aside isn't invisible to
+  //    the Dashboard/trend chart/income totals — nothing goes unrecorded.
   async function contribute(goal: SavingsGoal) {
     const raw = contribInputs[goal.id];
     const num = raw ? parseFloat(raw) : 0;
     if (!num || num <= 0) return;
-    const { error } = await supabase
+
+    const { error: goalErr } = await supabase
       .from("savings_goals")
       .update({ current_amount: Number(goal.current_amount) + num })
       .eq("id", goal.id);
-    if (error) {
-      flash("error", "Could not add contribution: " + error.message);
+    if (goalErr) {
+      flash("error", "Could not add contribution: " + goalErr.message);
       return;
     }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    await supabase.from("savings_contributions").insert({
+      user_id: userId,
+      goal_id: goal.id,
+      goal_name: goal.name,
+      amount: num,
+      contributed_on: today,
+    });
+
+    await supabase.from("income_entries").insert({
+      user_id: userId,
+      received_on: today,
+      source: `Savings goal: ${goal.name}`,
+      amount: num,
+      note: "Auto-logged from a savings contribution",
+    });
+
     setContribInputs((prev) => ({ ...prev, [goal.id]: "" }));
-    flash("ok", `Added ${formatMoney(num)} to ${goal.name}.`);
+    flash("ok", `Added ${formatMoney(num)} to ${goal.name} — also recorded as income.`);
     load();
+    onContributed?.();
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this savings goal? This cannot be undone.")) return;
+    if (!confirm("Delete this savings goal? Its contribution history stays in Reports & Entries.")) return;
     const { error } = await supabase.from("savings_goals").delete().eq("id", id);
     if (error) {
       flash("error", "Could not delete: " + error.message);
       return;
     }
+    if (editingId === id) resetForm();
     flash("ok", "Goal deleted.");
     load();
   }
@@ -96,7 +140,13 @@ export default function SavingsGoalsManager({ userId }: Props) {
     <div className="goals">
       <div className="head">
         <h3>Savings goals</h3>
-        <button className="add-btn" onClick={() => setShowAdd((v) => !v)}>
+        <button
+          className="add-btn"
+          onClick={() => {
+            if (showAdd) resetForm();
+            else setShowAdd(true);
+          }}
+        >
           {showAdd ? "Cancel" : "+ New goal"}
         </button>
       </div>
@@ -105,6 +155,7 @@ export default function SavingsGoalsManager({ userId }: Props) {
 
       {showAdd && (
         <div className="add-form">
+          {editingId && <p className="editing-tag">Editing existing goal</p>}
           <div className="grid">
             <label className="field span-2">
               <span>Goal name</span>
@@ -125,8 +176,8 @@ export default function SavingsGoalsManager({ userId }: Props) {
               <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
             </label>
           </div>
-          <button className="save-btn" onClick={addGoal} disabled={status.kind === "busy"}>
-            {status.kind === "busy" ? "Saving…" : "Create goal"}
+          <button className="save-btn" onClick={saveGoal} disabled={status.kind === "busy"}>
+            {status.kind === "busy" ? "Saving…" : editingId ? "Save changes" : "Create goal"}
           </button>
         </div>
       )}
@@ -144,7 +195,10 @@ export default function SavingsGoalsManager({ userId }: Props) {
               <div className="goal-row" key={g.id}>
                 <div className="goal-head">
                   <span className="goal-name">{g.name}</span>
-                  <button className="del" onClick={() => remove(g.id)} aria-label="Delete">✕</button>
+                  <div className="goal-head-actions">
+                    <button className="edit-btn" onClick={() => startEdit(g)} aria-label="Edit">✎</button>
+                    <button className="del" onClick={() => remove(g.id)} aria-label="Delete">✕</button>
+                  </div>
                 </div>
                 <div className="goal-amounts tab-nums">
                   {formatMoney(g.current_amount)} / {formatMoney(g.target_amount)}
@@ -205,6 +259,12 @@ export default function SavingsGoalsManager({ userId }: Props) {
           border-radius: var(--radius-sm);
           padding: 16px;
           margin-bottom: 16px;
+        }
+        .editing-tag {
+          color: var(--amber);
+          font-size: 11px;
+          font-weight: 600;
+          margin-bottom: 10px;
         }
         .grid {
           display: grid;
@@ -278,10 +338,28 @@ export default function SavingsGoalsManager({ userId }: Props) {
           justify-content: space-between;
           align-items: center;
         }
+        .goal-head-actions {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
         .goal-name {
           font-size: 14px;
           font-weight: 600;
           color: var(--text);
+        }
+        .edit-btn {
+          background: transparent;
+          border: 1px solid var(--line-strong);
+          color: var(--text-dim);
+          border-radius: var(--radius-sm);
+          width: 26px;
+          height: 26px;
+          font-size: 12px;
+        }
+        .edit-btn:hover {
+          border-color: var(--amber);
+          color: var(--amber);
         }
         .del {
           background: transparent;

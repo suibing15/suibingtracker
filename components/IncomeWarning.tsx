@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase, Expense, Profile } from "@/lib/supabaseClient";
 import { formatMoney } from "@/lib/config";
 import CollapsibleCard from "./CollapsibleCard";
@@ -62,6 +62,14 @@ export default function IncomeWarning({ profile, expenses, onSaved, bare = false
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+
+  // Re-sync the edit field whenever the saved value actually changes (e.g.
+  // after a save completes, or the profile refreshes from elsewhere) — the
+  // fields used to just freeze at whatever value was present on first
+  // mount, so re-opening "Edit" later could show a stale figure.
+  useEffect(() => {
+    setValue(profile.monthly_income?.toString() ?? "");
+  }, [profile.monthly_income]);
 
   const spendThisMonth = useMemo(() => {
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
