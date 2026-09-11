@@ -15,8 +15,36 @@ type ToneInfo = {
   glow: string;
 };
 
-const SEEN_KEY_PREFIX = "suibingtracker-status-toast-";
+const STATE_KEY = "suibingtracker-status-toast-state";
 const AUTO_DISMISS_MS = 8000;
+
+// How often this is allowed to interrupt: routine re-shows (situation is
+// the same or better than last time) are spaced out and capped per day, so
+// it stays a periodic nudge rather than a nag. A genuine escalation — the
+// situation getting WORSE than what was last shown today — always breaks
+// through immediately regardless of the cap or the gap, since that's
+// exactly the moment the reminder exists for.
+const MAX_ROUTINE_SHOWS_PER_DAY = 3;
+const MIN_GAP_BETWEEN_ROUTINE_SHOWS_MS = 3 * 60 * 60 * 1000; // 3 hours
+const MIN_GAP_FOR_ESCALATION_MS = 5 * 60 * 1000; // still avoid rapid double-fires from re-renders
+
+const TONE_SEVERITY: Record<ToneInfo["kind"], number> = { good: 1, stable: 2, over: 3 };
+
+type StoredState = { dateKey: string; lastShownAt: number; lastTone: ToneInfo["kind"] | null; count: number };
+
+function loadState(): StoredState {
+  try {
+    const raw = window.localStorage.getItem(STATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // fall through to a fresh state
+  }
+  return { dateKey: "", lastShownAt: 0, lastTone: null, count: 0 };
+}
+
+function saveState(state: StoredState) {
+  window.localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
 
 export default function FinancialStatusToast({ profile, allExpenses, allIncome }: Props) {
   const [tone, setTone] = useState<ToneInfo | null>(null);
@@ -25,7 +53,7 @@ export default function FinancialStatusToast({ profile, allExpenses, allIncome }
   useEffect(() => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-    const today = now.toISOString().slice(0, 10);
+    const todayKey = now.toISOString().slice(0, 10);
 
     const spendThisMonth = allExpenses
       .filter((e) => e.spent_on >= monthStart)
@@ -41,9 +69,6 @@ export default function FinancialStatusToast({ profile, allExpenses, allIncome }
       : loggedIncomeThisMonth;
 
     if (!incomeBasis || incomeBasis <= 0 || spendThisMonth <= 0) return; // nothing meaningful to compare yet
-
-    const seenKey = SEEN_KEY_PREFIX + today;
-    if (window.localStorage.getItem(seenKey)) return; // already shown once today
 
     const ratio = spendThisMonth / incomeBasis;
     let info: ToneInfo;
@@ -77,8 +102,29 @@ export default function FinancialStatusToast({ profile, allExpenses, allIncome }
       };
     }
 
+    const state = loadState();
+    const isNewDay = state.dateKey !== todayKey;
+    const effective = isNewDay ? { dateKey: todayKey, lastShownAt: 0, lastTone: null, count: 0 } : state;
+
+    const msSinceLastShow = now.getTime() - effective.lastShownAt;
+    const isEscalation = effective.lastTone !== null && TONE_SEVERITY[info.kind] > TONE_SEVERITY[effective.lastTone];
+
+    let shouldShow = false;
+    if (isEscalation) {
+      shouldShow = msSinceLastShow >= MIN_GAP_FOR_ESCALATION_MS;
+    } else if (effective.count < MAX_ROUTINE_SHOWS_PER_DAY) {
+      shouldShow = effective.lastShownAt === 0 || msSinceLastShow >= MIN_GAP_BETWEEN_ROUTINE_SHOWS_MS;
+    }
+
+    if (!shouldShow) return;
+
     setTone(info);
-    window.localStorage.setItem(seenKey, "1");
+    saveState({
+      dateKey: todayKey,
+      lastShownAt: now.getTime(),
+      lastTone: info.kind,
+      count: effective.count + 1,
+    });
 
     const timer = setTimeout(() => dismiss(), AUTO_DISMISS_MS);
     return () => clearTimeout(timer);

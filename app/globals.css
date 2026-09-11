@@ -91,6 +91,20 @@ textarea {
   font-family: var(--font-body);
 }
 
+/* Mobile browsers (iOS Safari especially, but Android too) auto-zoom the
+   page when you tap into a form field with a font-size under 16px — that's
+   the "zooming in" that happens while typing. This single rule overrides
+   every input/select/textarea across the whole app on small screens so
+   none of them ever trigger it, without needing to hand-edit font-size in
+   every individual component. */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
